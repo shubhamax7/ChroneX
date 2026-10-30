@@ -1,0 +1,17 @@
+# Build products
+/build/
+/out/
+/cmake-build-*/
+
+# Tooling
+/.cache/
+compile_commands.json
+
+# Editors and operating systems
+.DS_Store
+.idea/
+.vscode/
+
+# Third-party market data must never be committed. Measured result files are
+# intentionally versioned later under results/ for reproducibility.
+/data/
