@@ -7,12 +7,13 @@ measured behavior matter more than premature low-latency claims.
 > **Project name:** ChroneX. The codebase and all project artifacts use this
 > name exclusively.
 
-## Phase 1: specification foundation
+## Current status: Phase 2 complete
 
-The repository is intentionally in its first roadmap stage. It contains a
-versioned behavior specification, architecture decisions, research boundaries,
-and a portable CMake/CI skeleton. There is no matching engine yet. That is
-deliberate: implementation starts only once the behavior is unambiguous.
+ChroneX now has its correct, single-threaded reference implementation. It
+models one instrument with price-time priority, limit GTC/IOC and protected
+market orders, cancel, replace, explicit events, and test-build invariants.
+The implementation deliberately uses clear standard containers rather than
+performance-oriented storage; optimization belongs to a later phase.
 
 Read these documents in order:
 
@@ -35,6 +36,13 @@ ctest --preset debug
 `release` is an equivalent release preset. The CI matrix validates both Debug
 and Release with GCC and Clang. Benchmarking is deliberately disabled until
 Phase 3; enabling it uses `-DCHRONEX_BUILD_BENCHMARKS=ON`.
+
+## Verification
+
+The reference engine has 78 GoogleTest cases: semantic golden cases, boundary
+rejections, and seeded deterministic command-stream checks. Run them with the
+build instructions above. These tests establish the baseline; they do not make
+any latency, allocation-free, persistence, or production-readiness claim.
 
 ## Scope and non-goals
 

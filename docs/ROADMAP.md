@@ -1,8 +1,7 @@
 # ChroneX roadmap
 
-The original research plan has nine technical stages. For delivery, they will
-be grouped into five user-visible phases and five focused commits. This commit
-is Phase 1 and contains only the P0 specification foundation.
+The original research plan has nine technical stages. For delivery, they are
+grouped into five user-visible phases and five focused commits.
 
 | Delivery phase | Technical roadmap stages | Exit criterion |
 | --- | --- | --- |
@@ -24,7 +23,16 @@ is Phase 1 and contains only the P0 specification foundation.
 
 ## Phase 2 handoff
 
-Implement only what `SEMANTICS.md` specifies: POD/value domain types, a simple
-reference oracle, invariant checker, and tests. Do not add pooling, intrusive
-lists, lock-free queues, replay, or benchmarks before the reference behavior is
-proven.
+Phase 2 is complete. The code now contains POD/value domain types, a simple
+reference oracle, invariant checker, 78 golden/boundary/determinism tests, and
+Debug/Release verification. Do not add pooling, intrusive lists, lock-free
+queues, replay, or benchmarks before the reference behavior is compared against
+future alternatives.
+
+## Phase 3 handoff
+
+Establish a reproducible benchmark baseline before replacing the reference
+containers. Every later optimized policy must be compared event-by-event with
+this oracle on fixed-seed command streams, and any performance claim must carry
+the workload, machine, compiler, raw data, and rejected alternatives that
+support it.

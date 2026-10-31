@@ -37,3 +37,18 @@ jobs:
         run: |
           files=$(find include src tests benchmarks -type f \( -name '*.cc' -o -name '*.cpp' -o -name '*.hpp' \) 2>/dev/null || true)
           test -z "$files" || clang-format --dry-run --Werror $files
+
+  sanitizers:
+    name: Address and Undefined Behavior Sanitizers
+    runs-on: ubuntu-24.04
+    env:
+      CC: clang
+      CXX: clang++
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake --preset sanitizers
+      - name: Build
+        run: cmake --build --preset sanitizers --parallel
+      - name: Test
+        run: ctest --test-dir build/sanitizers --output-on-failure

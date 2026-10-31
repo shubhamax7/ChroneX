@@ -1,8 +1,8 @@
 # ChroneX semantics v0
 
-Status: **normative for Phase 1.** This document defines the behavior that the
-reference oracle will implement in Phase 2. It uses the project name ChroneX;
-the prior planning name is irrelevant to this repository.
+Status: **normative and implemented by the Phase 2 reference oracle.** This
+document defines the behavior that the reference implementation and its golden
+tests enforce. It uses the project name ChroneX exclusively.
 
 ## 1. Scope and vocabulary
 

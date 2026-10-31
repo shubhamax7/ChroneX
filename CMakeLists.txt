@@ -32,11 +32,11 @@ else()
   )
 endif()
 
-# This target deliberately has no implementation in P0. It makes the language
-# standard and warning policy consumable as the domain model arrives in P1.
-add_library(chronex INTERFACE)
-target_link_libraries(chronex INTERFACE chronex_options)
-target_include_directories(chronex INTERFACE
+# The Phase 2 reference implementation intentionally favors inspectable,
+# standards-based containers over optimized storage policies.
+add_library(chronex STATIC src/oracle/reference_book.cpp)
+target_link_libraries(chronex PRIVATE chronex_options)
+target_include_directories(chronex PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
 )
@@ -65,6 +65,15 @@ if(BUILD_TESTING OR CHRONEX_BUILD_BENCHMARKS)
     set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
     set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
     FetchContent_MakeAvailable(googletest)
+
+    add_executable(chronex_reference_book_test
+      tests/golden/reference_book_test.cpp
+      tests/boundary/reference_book_boundary_test.cpp
+    )
+    target_link_libraries(chronex_reference_book_test PRIVATE chronex chronex_options GTest::gtest_main)
+
+    include(GoogleTest)
+    gtest_discover_tests(chronex_reference_book_test)
   endif()
 
   if(CHRONEX_BUILD_BENCHMARKS)
