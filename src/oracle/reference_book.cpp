@@ -11,6 +11,7 @@
 namespace chronex {
 namespace {
 
+
 [[nodiscard]] Event acknowledgement(const CommandSequence command_sequence) {
   return Event{.kind = EventKind::Acknowledged, .command_sequence = command_sequence};
 }
@@ -21,6 +22,7 @@ namespace {
 }
 
 }  // namespace
+
 
 struct ReferenceBook::Impl {
   struct StoredOrder {
@@ -402,6 +404,7 @@ struct ReferenceBook::Impl {
     return std::nullopt;
   }
 
+
   BookConfig config;
   BidLevels bids;
   AskLevels asks;
@@ -434,5 +437,6 @@ std::size_t ReferenceBook::live_order_count() const noexcept {
 std::optional<std::string> ReferenceBook::invariant_violation() const {
   return impl_->invariant_violation();
 }
+
 
 }  // namespace chronex
