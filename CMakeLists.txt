@@ -54,13 +54,6 @@ if(BUILD_TESTING OR CHRONEX_BUILD_BENCHMARKS)
     GIT_TAG v1.17.0
     GIT_SHALLOW TRUE
   )
-  FetchContent_Declare(
-    googlebenchmark
-    GIT_REPOSITORY https://github.com/google/benchmark.git
-    GIT_TAG v1.9.4
-    GIT_SHALLOW TRUE
-  )
-
   if(BUILD_TESTING)
     set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
     set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
@@ -75,21 +68,20 @@ if(BUILD_TESTING OR CHRONEX_BUILD_BENCHMARKS)
     include(GoogleTest)
     gtest_discover_tests(chronex_reference_book_test)
 
-    if(CHRONEX_BUILD_BENCHMARKS)
-      target_compile_definitions(chronex PRIVATE CHRONEX_ENABLE_ALLOCATION_COUNTER)
-      add_executable(chronex_benchmarks benchmarks/reference_book_benchmark.cpp)
-      target_link_libraries(chronex_benchmarks PRIVATE chronex chronex_options benchmark::benchmark_main)
-    endif()
   endif()
 
   if(CHRONEX_BUILD_BENCHMARKS)
+    FetchContent_Declare(
+      googlebenchmark
+      GIT_REPOSITORY https://github.com/google/benchmark.git
+      GIT_TAG v1.9.4
+      GIT_SHALLOW TRUE
+    )
     set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "" FORCE)
     set(BENCHMARK_ENABLE_GTEST_TESTS OFF CACHE BOOL "" FORCE)
     FetchContent_MakeAvailable(googlebenchmark)
-    if(NOT BUILD_TESTING)
-      target_compile_definitions(chronex PRIVATE CHRONEX_ENABLE_ALLOCATION_COUNTER)
-      add_executable(chronex_benchmarks benchmarks/reference_book_benchmark.cpp)
-      target_link_libraries(chronex_benchmarks PRIVATE chronex chronex_options benchmark::benchmark_main)
-    endif()
+    target_compile_definitions(chronex PRIVATE CHRONEX_ENABLE_ALLOCATION_COUNTER)
+    add_executable(chronex_benchmarks benchmarks/reference_book_benchmark.cpp)
+    target_link_libraries(chronex_benchmarks PRIVATE chronex chronex_options benchmark::benchmark_main)
   endif()
 endif()

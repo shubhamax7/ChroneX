@@ -1,6 +1,8 @@
 #include "chronex/oracle/reference_book.hpp"
 
 #include <algorithm>
+#include <atomic>
+#include <cstdlib>
 #include <list>
 #include <map>
 #include <memory>
@@ -10,6 +12,8 @@
 
 namespace chronex {
 namespace {
+
+std::atomic<std::uint64_t> allocation_count{0};
 
 
 [[nodiscard]] Event acknowledgement(const CommandSequence command_sequence) {
@@ -22,6 +26,19 @@ namespace {
 }
 
 }  // namespace
+
+#if defined(CHRONEX_ENABLE_ALLOCATION_COUNTER)
+void* operator new(const std::size_t size) {
+  chronex::allocation_count.fetch_add(1, std::memory_order_relaxed);
+  if (void* memory = std::malloc(size); memory != nullptr) {
+    return memory;
+  }
+  throw std::bad_alloc{};
+}
+
+void operator delete(void* memory) noexcept { std::free(memory); }
+void operator delete(void* memory, const std::size_t) noexcept { std::free(memory); }
+#endif
 
 
 struct ReferenceBook::Impl {
