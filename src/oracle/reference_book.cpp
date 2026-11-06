@@ -11,10 +11,9 @@
 #include <utility>
 
 namespace chronex {
-namespace {
-
 std::atomic<std::uint64_t> allocation_count{0};
 
+namespace {
 
 [[nodiscard]] Event acknowledgement(const CommandSequence command_sequence) {
   return Event{.kind = EventKind::Acknowledged, .command_sequence = command_sequence};
@@ -27,19 +26,9 @@ std::atomic<std::uint64_t> allocation_count{0};
 
 }  // namespace
 
-#if defined(CHRONEX_ENABLE_ALLOCATION_COUNTER)
-void* operator new(const std::size_t size) {
-  chronex::allocation_count.fetch_add(1, std::memory_order_relaxed);
-  if (void* memory = std::malloc(size); memory != nullptr) {
-    return memory;
-  }
-  throw std::bad_alloc{};
+std::uint64_t allocation_count_snapshot() noexcept {
+  return allocation_count.load(std::memory_order_relaxed);
 }
-
-void operator delete(void* memory) noexcept { std::free(memory); }
-void operator delete(void* memory, const std::size_t) noexcept { std::free(memory); }
-#endif
-
 
 struct ReferenceBook::Impl {
   struct StoredOrder {
@@ -421,7 +410,6 @@ struct ReferenceBook::Impl {
     return std::nullopt;
   }
 
-
   BookConfig config;
   BidLevels bids;
   AskLevels asks;
@@ -455,5 +443,21 @@ std::optional<std::string> ReferenceBook::invariant_violation() const {
   return impl_->invariant_violation();
 }
 
-
 }  // namespace chronex
+
+#if defined(CHRONEX_ENABLE_ALLOCATION_COUNTER)
+void* operator new(const std::size_t size) {
+  chronex::allocation_count.fetch_add(1, std::memory_order_relaxed);
+  if (void* memory = std::malloc(size); memory != nullptr) {
+    return memory;
+  }
+  throw std::bad_alloc{};
+}
+
+void operator delete(void* memory) noexcept {
+  std::free(memory);
+}
+void operator delete(void* memory, const std::size_t) noexcept {
+  std::free(memory);
+}
+#endif

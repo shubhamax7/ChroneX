@@ -46,15 +46,13 @@ include(CTest)
 if(BUILD_TESTING OR CHRONEX_BUILD_BENCHMARKS)
   include(FetchContent)
 
-  # Pin named release versions. Updating either dependency is an explicit
-  # reviewable change, never an accidental floating-main update.
-  FetchContent_Declare(
-    googletest
-    GIT_REPOSITORY https://github.com/google/googletest.git
-    GIT_TAG v1.17.0
-    GIT_SHALLOW TRUE
-  )
   if(BUILD_TESTING)
+    FetchContent_Declare(
+      googletest
+      GIT_REPOSITORY https://github.com/google/googletest.git
+      GIT_TAG v1.17.0
+      GIT_SHALLOW TRUE
+    )
     set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
     set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
     FetchContent_MakeAvailable(googletest)

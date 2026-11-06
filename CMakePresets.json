@@ -35,6 +35,16 @@
       }
     },
     {
+      "name": "benchmark",
+      "displayName": "Release Benchmarks",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CHRONEX_BUILD_TESTS": "OFF",
+        "CHRONEX_BUILD_BENCHMARKS": "ON"
+      }
+    },
+    {
       "name": "sanitizers",
       "displayName": "Address and Undefined Behavior Sanitizers",
       "inherits": "base",
@@ -53,6 +63,10 @@
     {
       "name": "release",
       "configurePreset": "release"
+    },
+    {
+      "name": "benchmark",
+      "configurePreset": "benchmark"
     },
     {
       "name": "sanitizers",

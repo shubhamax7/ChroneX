@@ -10,6 +10,8 @@
 
 namespace chronex {
 
+[[nodiscard]] std::uint64_t allocation_count_snapshot() noexcept;
+
 struct BookConfig {
   Price price_max{1'000'000};
   Quantity quantity_max{1'000'000};

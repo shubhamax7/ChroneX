@@ -35,7 +35,9 @@ ctest --preset debug
 
 `release` is an equivalent release preset. The CI matrix validates both Debug
 and Release with GCC and Clang. Benchmarking is deliberately disabled until
-Phase 3; enabling it uses `-DCHRONEX_BUILD_BENCHMARKS=ON`.
+Phase 3; use the `benchmark` preset and `scripts/reproduce.sh` to run the
+baseline suite. See [benchmarking guide](docs/BENCHMARKING.md) for workload
+definitions and interpretation limits.
 
 ## Verification
 

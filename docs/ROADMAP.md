@@ -31,8 +31,9 @@ future alternatives.
 
 ## Phase 3 handoff
 
-Establish a reproducible benchmark baseline before replacing the reference
-containers. Every later optimized policy must be compared event-by-event with
-this oracle on fixed-seed command streams, and any performance claim must carry
-the workload, machine, compiler, raw data, and rejected alternatives that
-support it.
+The Phase 3 baseline harness and first local Release measurements are complete.
+The optimized book (P4) remains outstanding. The checked-in run is an initial
+single-machine data point with one repetition per case; it is not enough to
+accept or reject a performance change. Before P4 is complete, collect repeated
+paired trials, capture raw data and environment, and require event-by-event
+comparison with the reference oracle.
