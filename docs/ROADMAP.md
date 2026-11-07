@@ -31,9 +31,12 @@ future alternatives.
 
 ## Phase 3 handoff
 
-The Phase 3 baseline harness and first local Release measurements are complete.
-The optimized book (P4) remains outstanding. The checked-in run is an initial
-single-machine data point with one repetition per case; it is not enough to
-accept or reject a performance change. Before P4 is complete, collect repeated
-paired trials, capture raw data and environment, and require event-by-event
-comparison with the reference oracle.
+Phase 3 is complete. P4 adds a fixed-capacity pooled order store, intrusive FIFO
+price queues, dense price levels, and a hierarchical occupancy bitmap. Eight
+seeded command streams compare emitted events and book state against the
+reference after every command; the full Debug suite passes. A paired balanced
+add benchmark found a preliminary throughput improvement, with raw results and
+environment notes in `results/local-macos/2026-11-07/`. Construction cost for
+dense price arrays remains excluded from those timings and must be considered
+when choosing a price range and capacity. This single-machine result does not
+establish production performance. Phase 4 (P5-P7) can now begin.

@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <vector>
 
+#include "chronex/book/optimized_book.hpp"
 #include "chronex/oracle/reference_book.hpp"
 
 namespace chronex {
@@ -30,7 +31,9 @@ using BenchmarkCommand = CommandBody;
 void BM_ReferenceBookBalancedAdds(benchmark::State& state) {
   const auto workload = make_balanced_workload(static_cast<std::size_t>(state.range(0)));
   for (auto _ : state) {
+    state.PauseTiming();
     ReferenceBook book(BookConfig{.price_max = 1'000'000, .quantity_max = 1'000'000});
+    state.ResumeTiming();
     CommandSequence sequence = 1;
     for (const auto& body : workload) {
       const auto events = book.process(Command{.sequence = sequence++, .body = body});
@@ -43,6 +46,27 @@ void BM_ReferenceBookBalancedAdds(benchmark::State& state) {
   state.SetLabel("balanced non-crossing GTC adds");
 }
 BENCHMARK(BM_ReferenceBookBalancedAdds)->Arg(2'000)->Arg(20'000)->Unit(benchmark::kMillisecond);
+
+void BM_OptimizedBookBalancedAdds(benchmark::State& state) {
+  const auto workload = make_balanced_workload(static_cast<std::size_t>(state.range(0)));
+  for (auto _ : state) {
+    state.PauseTiming();
+    OptimizedBook book(
+        OptimizedBookConfig{.limits = BookConfig{.price_max = 1'000'000, .quantity_max = 1'000'000},
+                            .order_capacity = static_cast<std::size_t>(state.range(0))});
+    state.ResumeTiming();
+    CommandSequence sequence = 1;
+    for (const auto& body : workload) {
+      const auto events = book.process(Command{.sequence = sequence++, .body = body});
+      benchmark::DoNotOptimize(events.data());
+      benchmark::ClobberMemory();
+    }
+    benchmark::DoNotOptimize(book.live_order_count());
+  }
+  state.SetItemsProcessed(state.iterations() * static_cast<std::int64_t>(workload.size()));
+  state.SetLabel("optimized bitmap book: balanced non-crossing GTC adds");
+}
+BENCHMARK(BM_OptimizedBookBalancedAdds)->Arg(2'000)->Arg(20'000)->Unit(benchmark::kMillisecond);
 
 void BM_ReferenceBookCrossingIoc(benchmark::State& state) {
   constexpr std::size_t kOrdersPerBatch = 2'000;

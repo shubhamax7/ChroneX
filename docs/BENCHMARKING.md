@@ -6,7 +6,7 @@ network, or production-latency claims.
 
 ## Workloads
 
-`chronex_benchmarks` contains four Google Benchmark cases:
+`chronex_benchmarks` includes these Google Benchmark cases:
 
 - `BM_ReferenceBookBalancedAdds`: pre-generated non-crossing GTC command stream
   at 2,000 and 20,000 commands, including fresh-book construction per batch.
@@ -16,6 +16,9 @@ network, or production-latency claims.
   quantity decreases, then 500 cancels.
 - `BM_ReferenceBookAllocationProbe`: 1,000 unique-price resting adds and the
   number of calls to global `operator new` observed during those commands.
+- `BM_OptimizedBookBalancedAdds`: the same balanced-add streams using the
+  pooled bitmap book. Construction is paused out of the timed region for both
+  balanced-add cases, so these compare command processing after initialization.
 
 Workload construction is outside each timed loop where applicable. The engine
 returns an allocated vector of events from each command; therefore the current
@@ -43,9 +46,17 @@ compiler flags, machine, and measurement conditions are comparable.
 ## Interpretation and known gaps
 
 The reference implementation uses ordered maps, linked FIFO queues, an
-unordered live-order index, and per-command event vectors. The suite creates a
-baseline for later experiments; it does not yet compare alternative book
-policies, collect hardware counters, capture tail latency for an asynchronous
-pipeline, or validate against market data. Never infer an optimization win from
-one run. Preserve raw output, pair changes on the same seeds, rerun correctness
-tests, and retain rejected results.
+unordered live-order index, and per-command event vectors. The optimized policy
+uses fixed-capacity pooled nodes, intrusive FIFO queues, dense price-level
+arrays, and a hierarchical occupancy bitmap. On the local macOS run recorded in
+`results/local-macos/2026-11-07/`, the optimized policy processed the balanced
+workload faster in the median: 9.12M versus 7.69M commands/s at 2,000 commands,
+and 9.49M versus 6.88M at 20,000. These are three repetitions on one machine;
+the OS could not provide reliable CPU-frequency or affinity metadata, so treat
+the figures as preliminary. Dense-array construction is excluded from that
+comparison and has material time and memory cost at large configured price
+ranges. Do not extrapolate this result to other workloads or production
+latency. The suite still does not collect hardware counters, capture tail
+latency for an asynchronous pipeline, or validate against market data. Preserve
+raw output, compare on the same machine and workload, rerun correctness checks,
+and retain rejected results.

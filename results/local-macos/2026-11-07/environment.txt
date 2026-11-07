@@ -1,0 +1,8 @@
+Date: 2026-11-07
+Host: Shubhams-MacBook.local (Apple macOS, arm64)
+Benchmark: Google Benchmark v1.9.4, CMake Release preset
+Workload: balanced non-crossing GTC adds, book construction paused out of timed region
+Repetitions: 3 per policy and workload size
+CPU metadata caveat: Google Benchmark could not read hw.cpufrequency or set thread affinity; reported 24 MHz is not a usable CPU frequency measurement.
+Load at sample: approximately 4.7 (1-minute load average)
+Raw results: p4-reference-balanced.json and p4-optimized-balanced.json
