@@ -35,7 +35,11 @@ endif()
 # The Phase 2 reference implementation intentionally favors inspectable,
 # standards-based containers over optimized storage policies.
 add_library(chronex STATIC src/oracle/reference_book.cpp)
-target_sources(chronex PRIVATE src/book/optimized_book.cpp)
+target_sources(chronex PRIVATE
+  src/book/optimized_book.cpp
+  src/journal/command_journal.cpp
+  src/market_data/depth_reconstructor.cpp
+)
 target_link_libraries(chronex PRIVATE chronex_options)
 target_include_directories(chronex PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -62,6 +66,7 @@ if(BUILD_TESTING OR CHRONEX_BUILD_BENCHMARKS)
       tests/golden/reference_book_test.cpp
       tests/boundary/reference_book_boundary_test.cpp
       tests/property/optimized_book_differential_test.cpp
+      tests/pipeline/phase4_test.cpp
     )
     target_link_libraries(chronex_reference_book_test PRIVATE chronex chronex_options GTest::gtest_main)
 

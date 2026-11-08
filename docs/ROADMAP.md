@@ -40,3 +40,14 @@ environment notes in `results/local-macos/2026-11-07/`. Construction cost for
 dense price arrays remains excluded from those timings and must be considered
 when choosing a price range and capacity. This single-machine result does not
 establish production performance. Phase 4 (P5-P7) can now begin.
+
+## Phase 4 handoff
+
+Phase 4 is complete. P5 adds a bounded SPSC command pipeline with explicit
+backpressure and ordered results. P6 adds a versioned checksummed command
+journal, write-ahead submission wrapper, replay, torn-tail recovery, and
+continued sequencing after restart. P7 adds a venue-neutral market-by-price
+snapshot and update reconstructor with sequence-gap detection. The portable
+journal flush is not a power-loss durability guarantee, and feed translation
+remains venue-specific. The Debug suite passes all 89 tests; Release verification
+is recorded with this phase commit. Phase 5 (P8-P9) is ready to begin.

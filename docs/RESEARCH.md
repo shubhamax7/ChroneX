@@ -38,8 +38,8 @@ for ChroneX from performance claims. No benchmark number is implied here.
 | Event representation and hash | Phase 2 | It must be canonical before replay exists. |
 | Optimized level storage | Phase 4 | It needs a Phase 3 baseline and differential proof. |
 | Bounded pool failure semantics | Phase 4 | `CapacityExceeded` is specified but no pool exists yet. |
-| SPSC topology and backpressure | Phase 5 | It must not weaken deterministic command order. |
-| Journal durability guarantee | Phase 6 | It depends on platform I/O semantics and fault tests. |
+| SPSC topology and backpressure | Phase 5 | Resolved in Phase 4 as one bounded SPSC command queue with explicit retry. |
+| Journal durability guarantee | Phase 6 | Resolved for this phase as stream-flush only; OS-level durability remains open. |
 
 ## Research hygiene
 

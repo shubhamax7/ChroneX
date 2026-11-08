@@ -1,8 +1,10 @@
 # ChroneX semantics v0
 
-Status: **normative and implemented by the Phase 2 reference oracle.** This
-document defines the behavior that the reference implementation and its golden
-tests enforce. It uses the project name ChroneX exclusively.
+Status: **normative and implemented by the reference oracle.** This document
+defines command and event behavior enforced by the reference implementation and
+its golden tests. Phase 4 adds pipeline, journaling, replay, and depth
+reconstruction around these unchanged semantics. It uses the project name
+ChroneX exclusively.
 
 ## 1. Scope and vocabulary
 
@@ -175,5 +177,7 @@ and deterministic events for identical command logs and configuration.
 ## 7. Explicit non-goals
 
 This version excludes auctions, stop/iceberg/pegged orders, self-trade
-prevention, multiple instruments, sessions, network protocols, persistence,
-and order-ID reuse. Do not infer their semantics from a real exchange.
+prevention, multiple instruments, sessions, network protocols, and order-ID
+reuse. Journal persistence is an implementation layer documented in
+`PIPELINE_AND_RECOVERY.md`; it does not define additional matching semantics.
+Do not infer venue behavior from ChroneX or vice versa.
