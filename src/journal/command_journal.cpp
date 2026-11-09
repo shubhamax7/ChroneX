@@ -212,6 +212,8 @@ CommandJournal::CommandJournal(CommandJournal&&) noexcept = default;
 CommandJournal& CommandJournal::operator=(CommandJournal&&) noexcept = default;
 
 void CommandJournal::append(const Command& command) {
+  if (impl_->last_sequence == std::numeric_limits<CommandSequence>::max())
+    fail("command sequence exhausted");
   if (command.sequence != impl_->last_sequence + 1U) fail("append sequence is not contiguous");
   const auto payload = encode_command(command);
   Bytes header(kMagic.begin(), kMagic.end());

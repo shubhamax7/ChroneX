@@ -4,6 +4,7 @@
 #include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <string>
 #include <thread>
 
 #include "chronex/journal/command_journal.hpp"
@@ -76,7 +77,9 @@ TEST(MatchingPipelineTest, BackpressureAndShutdownPreserveAcceptedCommandOrder) 
 class JournalTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    path_ = std::filesystem::temp_directory_path() / "chronex-phase4-test.cxj";
+    const auto nonce = std::chrono::steady_clock::now().time_since_epoch().count();
+    path_ = std::filesystem::temp_directory_path() /
+            ("chronex-phase4-test-" + std::to_string(nonce) + ".cxj");
     std::filesystem::remove(path_);
   }
   void TearDown() override {

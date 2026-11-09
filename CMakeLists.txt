@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.24)
 
-project(ChroneX VERSION 0.0.0 LANGUAGES CXX)
+project(ChroneX VERSION 0.1.0 LANGUAGES CXX)
+
+find_package(Threads REQUIRED)
 
 option(CHRONEX_BUILD_TESTS "Build ChroneX tests" ON)
 option(CHRONEX_BUILD_BENCHMARKS "Build ChroneX benchmarks" OFF)
@@ -40,7 +42,7 @@ target_sources(chronex PRIVATE
   src/journal/command_journal.cpp
   src/market_data/depth_reconstructor.cpp
 )
-target_link_libraries(chronex PRIVATE chronex_options)
+target_link_libraries(chronex PUBLIC Threads::Threads PRIVATE chronex_options)
 target_include_directories(chronex PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>

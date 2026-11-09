@@ -10,7 +10,7 @@ if [[ $# -lt 1 || $# -gt 2 ]]; then
 fi
 
 results_dir="$1"
-filter="${2:-BM_ReferenceBook.*}"
+filter="${2:-BM_(Reference|Optimized)Book.*}"
 mkdir -p "$results_dir"
 
 cmake --preset benchmark
@@ -30,6 +30,8 @@ cmake --build --preset benchmark --parallel
 
 build/benchmark/chronex_benchmarks \
   --benchmark_filter="$filter" \
+  --benchmark_repetitions=5 \
+  --benchmark_min_time=0.05s \
   --benchmark_out="$results_dir/benchmark.json" \
   --benchmark_out_format=json \
   --benchmark_report_aggregates_only=false

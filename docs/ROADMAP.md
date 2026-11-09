@@ -49,5 +49,18 @@ journal, write-ahead submission wrapper, replay, torn-tail recovery, and
 continued sequencing after restart. P7 adds a venue-neutral market-by-price
 snapshot and update reconstructor with sequence-gap detection. The portable
 journal flush is not a power-loss durability guarantee, and feed translation
-remains venue-specific. The Debug suite passes all 89 tests; Release verification
-is recorded with this phase commit. Phase 5 (P8-P9) is ready to begin.
+remains venue-specific. The Debug suite passed all 89 tests; Debug, Release, and
+Address/UndefinedBehavior sanitizer verification were recorded with the phase
+commit.
+
+## Phase 5 handoff
+
+Phase 5 is complete. P8 closes the pipeline, journal/replay, and depth
+reconstruction path with end-to-end recovery evidence, current benchmark
+reproduction instructions, and explicit durability and feed limitations. P9
+records the release decision and remaining v1.0.0 blockers in
+`docs/RELEASE_REVIEW.md`. The project is versioned 0.1.0 for experimental and
+educational use; it is not declared production-ready. All 89 local tests pass
+in Debug, Release, and Address/UndefinedBehavior sanitizer builds. The CI
+workflow is configured for GCC/Clang and Debug/Release; hosted results must be
+green before a release tag is distributed.

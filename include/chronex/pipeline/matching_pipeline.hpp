@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <exception>
 #include <limits>
+#include <optional>
 #include <stdexcept>
 #include <thread>
 #include <utility>

@@ -42,6 +42,11 @@ compiler, tool versions, commit and dirty state, then saves raw Google Benchmark
 JSON. It does not pin CPU affinity, disable turbo, or change power settings.
 Record those controls manually when used. Compare results only when the workload,
 compiler flags, machine, and measurement conditions are comparable.
+The default filter includes the reference and optimized book policies and runs
+five repetitions with a 50 ms minimum measurement window per repetition. Pass a
+Google Benchmark regular-expression filter as the second argument to narrow
+the run. Increase the minimum window for more stable measurements; the default
+keeps a full local comparison practical while still retaining every sample.
 
 ## Interpretation and known gaps
 
