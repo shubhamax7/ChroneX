@@ -19,7 +19,7 @@ was not accepted. `drain_and_stop()` closes submission, drains accepted work,
 joins the worker, and returns results that the caller did not poll. Keep using
 the caller thread as the sole producer and result consumer.
 
-`JournaledMatchingPipeline<N>` writes and stream-flushes a command before
+`JournaledMatchingPipeline<N>` writes and synchronizes a command before
 publishing it to the input queue. If the queue is already full, it returns
 `false` without appending. On construction it replays the journal to rebuild
 book state and continue at the next sequence number. It uses the portable
@@ -41,12 +41,32 @@ the same reference engine and returns the event vector for every command plus
 the final resting sides. Deterministic replay assumes the same ChroneX command
 semantics and configuration.
 
-`ofstream::flush()` moves bytes through the C++ stream buffer. It does not call
-`fsync`/`FlushFileBuffers`, so this phase does not claim power-loss durability,
-atomic filesystem replacement, or network-filesystem guarantees. The journal
-is synchronous and can add substantial producer latency. A production
-durability tier requires platform-specific syncing, crash injection, and an
-explicit acknowledgement policy.
+The default `JournalSyncPolicy::EachAppend` writes through the native file API
+and waits for `fsync` on POSIX or `FlushFileBuffers` on Windows before returning
+success. On POSIX, creation of a new journal also synchronizes its containing
+directory. `JournalSyncPolicy::None` skips the sync request and should be
+used only when the caller accepts weaker recovery guarantees. The journal is
+single-writer; concurrent independent journal objects must not append to the
+same file. With per-append sync enabled, the parent directory must already
+exist. POSIX syncs that directory when it creates a journal file; Windows
+flushes the file handle, and does not claim a separately synchronized
+directory-entry guarantee.
+
+A successful sync means the operating system accepted the sync request. It
+cannot compensate for storage devices, controllers, virtualization layers, or
+network filesystems that misreport or weaken persistence. It also does not make
+multi-file state transitions atomic. Per-command sync adds producer latency;
+measure it on the target filesystem before choosing an acknowledgment policy.
+The recovery tests truncate a frame at every byte boundary and verify recovery
+continues from the last complete frame. Real power-cut and filesystem fault
+injection remain deployment-level validation.
+
+The journal sync happens before the command enters the pipeline queue. If the
+process stops after the sync but before `try_submit` returns, recovery may replay
+the command even though the caller never observed `true`. Treat that sequence as
+an uncertain acknowledgment and reconcile it from the journal before retrying.
+Likewise, a sync error has an uncertain on-disk outcome; the writer becomes
+poisoned and must be reopened and recovered rather than continuing.
 
 ## Market-by-price depth reconstruction
 
@@ -68,8 +88,8 @@ messages into this absolute-update model.
 
 - SPSC enqueue/dequeue: O(1), bounded storage O(N), one producer and one
   consumer only.
-- Journal append: O(command payload size), synchronous stream flush per
-  command; recovery is O(number of commands) time and memory.
+- Journal append: O(command payload size) plus the selected OS sync latency;
+  recovery is O(number of commands) time and memory.
 - Depth level update: O(log L) time in the number of stored price levels;
   snapshots and returned views are O(L).
 

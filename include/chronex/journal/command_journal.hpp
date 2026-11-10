@@ -8,17 +8,23 @@
 
 namespace chronex {
 
+enum class JournalSyncPolicy {
+  None,
+  EachAppend,
+};
+
 class CommandJournal {
  public:
-  explicit CommandJournal(std::filesystem::path path);
+  explicit CommandJournal(std::filesystem::path path,
+                          JournalSyncPolicy sync_policy = JournalSyncPolicy::EachAppend);
   ~CommandJournal();
   CommandJournal(const CommandJournal&) = delete;
   CommandJournal& operator=(const CommandJournal&) = delete;
   CommandJournal(CommandJournal&&) noexcept;
   CommandJournal& operator=(CommandJournal&&) noexcept;
 
-  // Appends one checksummed, versioned command and flushes the C++ file stream.
-  // This is not an fsync/power-loss durability guarantee.
+  // Appends one checksummed, versioned command. EachAppend requests an OS-level
+  // file sync before returning; this cannot override filesystem/device limits.
   void append(const Command& command);
   [[nodiscard]] const std::filesystem::path& path() const noexcept;
 

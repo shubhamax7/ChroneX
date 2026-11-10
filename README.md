@@ -7,7 +7,7 @@ measured behavior matter more than premature low-latency claims.
 > **Project name:** ChroneX. The codebase and all project artifacts use this
 > name exclusively.
 
-## Current status: Phase 5 complete
+## Current status: Phase 6 complete
 
 ChroneX includes a deterministic price-time-priority matching engine, an
 optimized pooled book policy, a bounded SPSC execution pipeline, a checksummed
@@ -54,19 +54,21 @@ definitions and interpretation limits.
 
 ## Verification
 
-The suite has 89 GoogleTest cases covering semantic and boundary behavior,
+The suite has 91 GoogleTest cases covering semantic and boundary behavior,
 seeded differential streams, queue concurrency and backpressure, journal
 round-trips and torn-tail recovery, restart replay, and depth reconstruction.
-All 89 pass locally in Debug, Release, and Address/UndefinedBehavior sanitizer
+All 91 pass locally in Debug, Release, and Address/UndefinedBehavior sanitizer
 builds. These checks do not establish power-loss durability, venue correctness,
 tail latency, or production readiness.
 
 ## Scope and non-goals
 
 ChroneX models a single instrument in-process. It does not include a live
-exchange connection or venue adapter, OS-synced journal durability, journal
-compaction/checkpoints, production latency guarantees, or a lock-free whole
-system. The matching pipeline uses the reference book; the optimized book is a
-separately verified policy and is not yet integrated into that pipeline.
+exchange connection or venue adapter, journal compaction/checkpoints, production
+latency guarantees, or a lock-free whole system. The journal requests native
+per-record synchronization by default, but hardware and filesystem behavior
+still need deployment-specific validation. The matching pipeline uses the
+reference book; the optimized book is separately verified and is not yet
+integrated into that pipeline.
 
 See [LICENSE](LICENSE) for use terms.

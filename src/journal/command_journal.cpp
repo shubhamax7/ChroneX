@@ -1,5 +1,6 @@
 #include "chronex/journal/command_journal.hpp"
 
+#include <algorithm>
 #include <array>
 #include <bit>
 #include <cstdint>
@@ -7,7 +8,19 @@
 #include <limits>
 #include <stdexcept>
 #include <string>
+#include <system_error>
 #include <type_traits>
+
+#if defined(_WIN32)
+#define NOMINMAX
+#include <windows.h>
+#else
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+#include <cerrno>
+#endif
 
 namespace chronex {
 namespace {
@@ -19,6 +32,97 @@ constexpr std::uint32_t kMaxPayloadSize = 128U;
 [[noreturn]] void fail(const std::string& message) {
   throw std::runtime_error("journal: " + message);
 }
+
+[[noreturn]] void fail_system(const char* operation) {
+#if defined(_WIN32)
+  throw std::system_error(static_cast<int>(GetLastError()), std::system_category(), operation);
+#else
+  throw std::system_error(errno, std::generic_category(), operation);
+#endif
+}
+
+class NativeAppendFile {
+ public:
+  explicit NativeAppendFile(const std::filesystem::path& path) {
+#if defined(_WIN32)
+    handle_ = CreateFileW(path.c_str(), GENERIC_WRITE | FILE_APPEND_DATA, FILE_SHARE_READ, nullptr,
+                          OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (handle_ == INVALID_HANDLE_VALUE) fail_system("CreateFileW");
+#else
+    descriptor_ = ::open(path.c_str(), O_WRONLY | O_CREAT | O_APPEND | O_CLOEXEC, 0600);
+    if (descriptor_ < 0) fail_system("open journal");
+#endif
+  }
+
+  ~NativeAppendFile() {
+#if defined(_WIN32)
+    if (handle_ != INVALID_HANDLE_VALUE) CloseHandle(handle_);
+#else
+    if (descriptor_ >= 0) ::close(descriptor_);
+#endif
+  }
+
+  NativeAppendFile(const NativeAppendFile&) = delete;
+  NativeAppendFile& operator=(const NativeAppendFile&) = delete;
+
+  void write(const std::uint8_t* data, std::size_t size) {
+    while (size > 0U) {
+#if defined(_WIN32)
+      const auto chunk_size = static_cast<DWORD>(
+          std::min<std::size_t>(size, static_cast<std::size_t>(std::numeric_limits<DWORD>::max())));
+      DWORD written = 0;
+      if (!WriteFile(handle_, data, chunk_size, &written, nullptr)) fail_system("WriteFile");
+      if (written == 0U) fail("WriteFile made no progress");
+      const auto written_size = static_cast<std::size_t>(written);
+#else
+      const auto written = ::write(descriptor_, data, size);
+      if (written < 0) {
+        if (errno == EINTR) continue;
+        fail_system("write journal");
+      }
+      if (written == 0) fail("write made no progress");
+      const auto written_size = static_cast<std::size_t>(written);
+#endif
+      data += written_size;
+      size -= written_size;
+    }
+  }
+
+  void sync() {
+#if defined(_WIN32)
+    if (!FlushFileBuffers(handle_)) fail_system("FlushFileBuffers");
+#else
+    while (::fsync(descriptor_) != 0) {
+      if (errno == EINTR) continue;
+      fail_system("fsync journal");
+    }
+#endif
+  }
+
+#if !defined(_WIN32)
+  static void sync_parent_directory(const std::filesystem::path& file_path) {
+    auto directory = file_path.parent_path();
+    if (directory.empty()) directory = ".";
+    const int directory_fd = ::open(directory.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+    if (directory_fd < 0) fail_system("open journal directory");
+    int result;
+    do {
+      result = ::fsync(directory_fd);
+    } while (result != 0 && errno == EINTR);
+    const int sync_error = errno;
+    ::close(directory_fd);
+    if (result != 0)
+      throw std::system_error(sync_error, std::generic_category(), "fsync directory");
+  }
+#endif
+
+ private:
+#if defined(_WIN32)
+  HANDLE handle_{INVALID_HANDLE_VALUE};
+#else
+  int descriptor_{-1};
+#endif
+};
 
 template <typename Integer>
 void encode_integer(Bytes& out, Integer value) {
@@ -188,30 +292,44 @@ struct ScanResult {
 }  // namespace
 
 struct CommandJournal::Impl {
-  explicit Impl(std::filesystem::path file_path) : file_path(std::move(file_path)) {
-    if (this->file_path.has_parent_path())
-      std::filesystem::create_directories(this->file_path.parent_path());
+  explicit Impl(std::filesystem::path file_path, const JournalSyncPolicy policy)
+      : file_path(std::move(file_path)), sync_policy(policy) {
+    if (sync_policy != JournalSyncPolicy::None && sync_policy != JournalSyncPolicy::EachAppend)
+      fail("unknown synchronization policy");
+    const auto parent_directory = this->file_path.parent_path();
+    if (!parent_directory.empty() && !std::filesystem::exists(parent_directory)) {
+      if (sync_policy == JournalSyncPolicy::EachAppend)
+        fail("parent directory must exist when per-append sync is enabled");
+      std::filesystem::create_directories(parent_directory);
+    }
     const auto existing = scan(this->file_path);
     const auto file_size =
         std::filesystem::exists(this->file_path) ? std::filesystem::file_size(this->file_path) : 0U;
     if (existing.valid_bytes < file_size)
       std::filesystem::resize_file(this->file_path, existing.valid_bytes);
     last_sequence = existing.commands.empty() ? 0U : existing.commands.back().sequence;
-    output.open(this->file_path, std::ios::binary | std::ios::app);
-    if (!output) fail("cannot open file for append");
+    output = std::make_unique<NativeAppendFile>(this->file_path);
+    if (sync_policy == JournalSyncPolicy::EachAppend) {
+#if !defined(_WIN32)
+      NativeAppendFile::sync_parent_directory(this->file_path);
+#endif
+    }
   }
   std::filesystem::path file_path;
-  std::ofstream output;
+  std::unique_ptr<NativeAppendFile> output;
+  JournalSyncPolicy sync_policy;
   CommandSequence last_sequence{};
+  bool poisoned{};
 };
 
-CommandJournal::CommandJournal(std::filesystem::path path)
-    : impl_(std::make_unique<Impl>(std::move(path))) {}
+CommandJournal::CommandJournal(std::filesystem::path path, const JournalSyncPolicy sync_policy)
+    : impl_(std::make_unique<Impl>(std::move(path), sync_policy)) {}
 CommandJournal::~CommandJournal() = default;
 CommandJournal::CommandJournal(CommandJournal&&) noexcept = default;
 CommandJournal& CommandJournal::operator=(CommandJournal&&) noexcept = default;
 
 void CommandJournal::append(const Command& command) {
+  if (impl_->poisoned) fail("writer is poisoned after an earlier I/O failure; reopen for recovery");
   if (impl_->last_sequence == std::numeric_limits<CommandSequence>::max())
     fail("command sequence exhausted");
   if (command.sequence != impl_->last_sequence + 1U) fail("append sequence is not contiguous");
@@ -219,12 +337,17 @@ void CommandJournal::append(const Command& command) {
   Bytes header(kMagic.begin(), kMagic.end());
   encode_integer(header, static_cast<std::uint32_t>(payload.size()));
   encode_integer(header, checksum(payload));
-  impl_->output.write(reinterpret_cast<const char*>(header.data()),
-                      static_cast<std::streamsize>(header.size()));
-  impl_->output.write(reinterpret_cast<const char*>(payload.data()),
-                      static_cast<std::streamsize>(payload.size()));
-  impl_->output.flush();
-  if (!impl_->output) fail("write or stream flush failed");
+  Bytes frame;
+  frame.reserve(header.size() + payload.size());
+  frame.insert(frame.end(), header.begin(), header.end());
+  frame.insert(frame.end(), payload.begin(), payload.end());
+  try {
+    impl_->output->write(frame.data(), frame.size());
+    if (impl_->sync_policy == JournalSyncPolicy::EachAppend) impl_->output->sync();
+  } catch (...) {
+    impl_->poisoned = true;
+    throw;
+  }
   impl_->last_sequence = command.sequence;
 }
 

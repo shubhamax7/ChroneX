@@ -4,6 +4,8 @@
 #include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
+#include <stdexcept>
 #include <string>
 #include <thread>
 
@@ -125,6 +127,38 @@ TEST_F(JournalTest, TruncatesTornTailAndContinuesAtNextSequence) {
     journal.append(Command{2, CancelOrder{.order_id = 1}});
   }
   EXPECT_EQ(CommandJournal::recover(path_).size(), 2U);
+}
+
+TEST_F(JournalTest, RecoversFromEveryIncompleteFrameByteBoundary) {
+  const Command command{1, LimitGtc{.order_id = 1, .side = Side::Buy, .price = 42, .quantity = 7}};
+  {
+    CommandJournal journal(path_);
+    journal.append(command);
+  }
+  std::ifstream source(path_, std::ios::binary);
+  const std::vector<char> complete_frame((std::istreambuf_iterator<char>(source)),
+                                         std::istreambuf_iterator<char>());
+  source.close();
+  ASSERT_GT(complete_frame.size(), 12U);
+
+  for (std::size_t prefix_size = 0U; prefix_size < complete_frame.size(); ++prefix_size) {
+    {
+      std::ofstream torn(path_, std::ios::binary | std::ios::trunc);
+      torn.write(complete_frame.data(), static_cast<std::streamsize>(prefix_size));
+    }
+    {
+      CommandJournal recovered_writer(path_);
+      EXPECT_TRUE(CommandJournal::recover(path_).empty()) << "prefix bytes: " << prefix_size;
+      recovered_writer.append(command);
+    }
+    EXPECT_EQ(CommandJournal::recover(path_).size(), 1U) << "prefix bytes: " << prefix_size;
+  }
+}
+
+TEST_F(JournalTest, SyncedJournalRequiresAnExistingParentDirectory) {
+  const auto nested_path = path_.parent_path() / "chronex-missing-parent" / path_.filename();
+  EXPECT_THROW(CommandJournal journal(nested_path), std::runtime_error);
+  EXPECT_FALSE(std::filesystem::exists(nested_path.parent_path()));
 }
 
 TEST_F(JournalTest, RejectsChecksumCorruption) {

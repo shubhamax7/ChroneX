@@ -1,25 +1,26 @@
 # ChroneX release review
 
-Review date: 2026-11-09  
-Reviewed scope: delivery Phases 1-5 (P0-P9)  
-Project version: 0.1.0
+Review date: 2026-11-10
+Reviewed scope: delivery Phases 1-6 (P0-P10)
+Project version: 0.2.0
 
 ## Decision
 
-Phase 5 is complete for the educational prototype. ChroneX is suitable for
+Phase 6 is complete for the educational prototype. ChroneX is suitable for
 review, local development, and reproducible experiments. It is not approved as
-a production matching engine or as a v1.0.0 release. The version remains 0.1.0
+a production matching engine or as a v1.0.0 release. The version remains 0.2.0
 until the production blockers below are addressed and independently reviewed.
 
 ## Evidence
 
 - The configured CI workflow builds and tests Debug and Release with GCC and
   Clang, checks C++ formatting, and runs Address/UndefinedBehavior sanitizers.
-- On the developer workstation, all 89 GoogleTest cases passed in Debug,
-  Release, and sanitizer configurations on 2026-11-09. The cases cover the
+- On the developer workstation, all 91 GoogleTest cases passed in Debug,
+  Release, and sanitizer configurations on 2026-11-10. The cases cover the
   reference semantics, optimized-book differential behavior, bounded queue
   ordering, pipeline draining, journal command round-trip and replay, torn-tail
-  recovery, checksum rejection, restart continuation, and depth reconstruction.
+  recovery at all incomplete-frame byte boundaries, checksum rejection,
+  restart continuation, and depth reconstruction.
 - The Phase 3 balanced-add comparison is preserved as raw JSON in
   `results/local-macos/2026-11-07/`. It contains three repetitions on one
   machine and excludes construction for the two book-policy cases. It is
@@ -49,25 +50,22 @@ commit before distributing a tagged binary.
 
 ## Blockers before v1.0.0 or production use
 
-1. **Durability:** the journal uses `ofstream::flush()`, not OS-level durable
-   synchronization. Define acknowledgment semantics, implement platform
-   durability, and inject crashes around writes and recovery.
-2. **Journal scale:** recovery loads and replays the full history in memory.
+1. **Journal scale:** recovery loads and replays the full history in memory.
    Add a checkpoint/snapshot format, compaction, version migration, and
    retention policy before long-lived use.
-3. **Concurrency validation:** run ThreadSanitizer, sustained producer/consumer
+2. **Concurrency validation:** run ThreadSanitizer, sustained producer/consumer
    stress, shutdown races, queue saturation tests, and measured overload
    behavior. The current sanitizer preset covers address and undefined
    behavior only.
-4. **Feed integration:** implement and test at least one named venue adapter,
+3. **Feed integration:** implement and test at least one named venue adapter,
    including its snapshot sequence rules, incremental updates, corrections,
    and resynchronization workflow. Current depth reconstruction is deliberately
    venue-neutral.
-5. **Performance evidence:** benchmark the pipeline end to end, report latency
+4. **Performance evidence:** benchmark the pipeline end to end, report latency
    distributions and queue-full behavior, test representative order-flow
    distributions, and compare the reference and optimized policies under the
    same measured setup. The pipeline currently uses the reference book.
-6. **Release engineering:** verify hosted CI, add install/export and consumer
+5. **Release engineering:** verify hosted CI, add install/export and consumer
    build checks, publish supported platform/compiler combinations, and define
    compatibility policy for the journal format and public C++ API.
 
@@ -79,6 +77,8 @@ commit before distributing a tagged binary.
   bounded; application code must handle `false` as backpressure.
 - The binary journal is versioned, but no cross-version migration is provided.
   A complete checksum mismatch stops recovery instead of skipping data.
+- Per-record OS sync requests do not override storage hardware or filesystem
+  guarantees; power-loss testing on target deployment systems remains open.
 - The optimized policy allocates dense arrays from configured price bounds and
   can consume substantial memory. Its benchmark excludes that one-time setup.
 - There are no market-data captures, network tests, tail-latency guarantees,
