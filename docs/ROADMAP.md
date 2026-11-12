@@ -1,8 +1,8 @@
 # ChroneX roadmap
 
 The original research plan has nine technical stages grouped into five delivery
-phases. Phase 6 is a post-plan hardening stage added to address the documented
-release blockers.
+phases. Phases 6 and 7 are post-plan hardening stages added to address the
+documented release blockers.
 
 | Delivery phase | Technical roadmap stages | Exit criterion |
 | --- | --- | --- |
@@ -12,6 +12,7 @@ release blockers.
 | 4. Deterministic pipeline | P5-P7 | SPSC pipeline, journal/replay, recovery, market-data reconstruction. |
 | 5. Release quality | P8-P9 | End-to-end evidence, reproducibility guide, limitations, v1.0 review. |
 | 6. Journal hardening | P10 (post-plan) | Native record synchronization and exhaustive torn-frame recovery. |
+| 7. Concurrency validation | P11 (post-plan) | ThreadSanitizer, million-item queue stress, and pipeline saturation/shutdown proof. |
 
 ## Phase 1 acceptance criteria
 
@@ -76,5 +77,17 @@ creation also syncs its containing directory. Recovery coverage now
 tests every incomplete-frame byte boundary and resumes from the last complete
 record. The project version is 0.2.0. Hardware-level power-loss validation,
 filesystem-specific testing, journal checkpoints, and cross-platform Windows
-execution remain outside this phase. All 91 tests pass in Debug, Release, and
+execution remain outside this phase. All 91 tests passed in Debug, Release, and
 Address/UndefinedBehavior sanitizer builds.
+
+## Phase 7 handoff (post-plan concurrency validation)
+
+Phase 7 is complete. P11 adds a ThreadSanitizer configure/build preset and CI
+job, a one-million-item SPSC producer/consumer stress test, a 5,000-command
+pipeline backpressure run, and a deterministic shutdown test with both bounded
+queues saturated. All 92 tests passed under ThreadSanitizer locally on macOS,
+as well as in Debug, Release, and Address/UndefinedBehavior sanitizer builds.
+The CI job runs the same suite on Linux; hosted results remain to be observed.
+The project version is 0.3.0. This stage validates the one-producer,
+one-consumer topology, not arbitrary multi-producer use or production overload
+latency.

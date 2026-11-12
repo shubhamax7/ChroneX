@@ -53,6 +53,16 @@
         "CMAKE_CXX_FLAGS": "-fsanitize=address,undefined -fno-omit-frame-pointer",
         "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=address,undefined"
       }
+    },
+    {
+      "name": "thread-sanitizer",
+      "displayName": "Thread Sanitizer",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_CXX_FLAGS": "-fsanitize=thread -fno-omit-frame-pointer",
+        "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=thread"
+      }
     }
   ],
   "buildPresets": [
@@ -71,6 +81,10 @@
     {
       "name": "sanitizers",
       "configurePreset": "sanitizers"
+    },
+    {
+      "name": "thread-sanitizer",
+      "configurePreset": "thread-sanitizer"
     }
   ],
   "testPresets": [

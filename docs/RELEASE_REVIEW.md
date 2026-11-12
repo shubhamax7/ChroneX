@@ -1,24 +1,27 @@
 # ChroneX release review
 
-Review date: 2026-11-10
-Reviewed scope: delivery Phases 1-6 (P0-P10)
-Project version: 0.2.0
+Review date: 2026-11-12
+Reviewed scope: delivery Phases 1-7 (P0-P11)
+Project version: 0.3.0
 
 ## Decision
 
-Phase 6 is complete for the educational prototype. ChroneX is suitable for
+Phase 7 is complete for the educational prototype. ChroneX is suitable for
 review, local development, and reproducible experiments. It is not approved as
-a production matching engine or as a v1.0.0 release. The version remains 0.2.0
+a production matching engine or as a v1.0.0 release. The version remains 0.3.0
 until the production blockers below are addressed and independently reviewed.
 
 ## Evidence
 
 - The configured CI workflow builds and tests Debug and Release with GCC and
   Clang, checks C++ formatting, and runs Address/UndefinedBehavior sanitizers.
-- On the developer workstation, all 91 GoogleTest cases passed in Debug,
-  Release, and sanitizer configurations on 2026-11-10. The cases cover the
-  reference semantics, optimized-book differential behavior, bounded queue
-  ordering, pipeline draining, journal command round-trip and replay, torn-tail
+- On the developer workstation, all 92 GoogleTest cases passed in Debug,
+  Release, Address/UndefinedBehavior sanitizer, and ThreadSanitizer
+  configurations on 2026-11-12. The concurrency coverage includes a one-million
+  item SPSC transfer, a 5,000-command pipeline run, bounded queue saturation,
+  and shutdown while the worker is blocked on a full result queue.
+  The rest of the suite covers reference semantics, optimized-book differential
+  behavior, pipeline draining, journal command round-trip and replay, torn-tail
   recovery at all incomplete-frame byte boundaries, checksum rejection,
   restart continuation, and depth reconstruction.
 - The Phase 3 balanced-add comparison is preserved as raw JSON in
@@ -53,10 +56,10 @@ commit before distributing a tagged binary.
 1. **Journal scale:** recovery loads and replays the full history in memory.
    Add a checkpoint/snapshot format, compaction, version migration, and
    retention policy before long-lived use.
-2. **Concurrency validation:** run ThreadSanitizer, sustained producer/consumer
-   stress, shutdown races, queue saturation tests, and measured overload
-   behavior. The current sanitizer preset covers address and undefined
-   behavior only.
+2. **Concurrency validation:** observe the hosted Linux ThreadSanitizer CI job
+   and add longer-duration soak and measured overload tests. Local ThreadSanitizer
+   and bounded saturation checks pass, but they do not establish sustained
+   production behavior.
 3. **Feed integration:** implement and test at least one named venue adapter,
    including its snapshot sequence rules, incremental updates, corrections,
    and resynchronization workflow. Current depth reconstruction is deliberately
@@ -100,6 +103,10 @@ ctest --preset release
 cmake --preset sanitizers
 cmake --build --preset sanitizers --parallel
 ctest --test-dir build/sanitizers --output-on-failure
+
+cmake --preset thread-sanitizer
+cmake --build --preset thread-sanitizer --parallel
+ctest --test-dir build/thread-sanitizer --output-on-failure
 
 scripts/reproduce.sh results/<machine>/<date>
 ```

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.24)
 
-project(ChroneX VERSION 0.2.0 LANGUAGES CXX)
+project(ChroneX VERSION 0.3.0 LANGUAGES CXX)
 
 find_package(Threads REQUIRED)
 

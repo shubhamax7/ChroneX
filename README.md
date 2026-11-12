@@ -7,7 +7,7 @@ measured behavior matter more than premature low-latency claims.
 > **Project name:** ChroneX. The codebase and all project artifacts use this
 > name exclusively.
 
-## Current status: Phase 6 complete
+## Current status: Phase 7 complete
 
 ChroneX includes a deterministic price-time-priority matching engine, an
 optimized pooled book policy, a bounded SPSC execution pipeline, a checksummed
@@ -46,6 +46,10 @@ formatting. Run the sanitizer preset locally with:
 cmake --preset sanitizers
 cmake --build --preset sanitizers --parallel
 ctest --test-dir build/sanitizers --output-on-failure
+
+cmake --preset thread-sanitizer
+cmake --build --preset thread-sanitizer --parallel
+ctest --test-dir build/thread-sanitizer --output-on-failure
 ```
 
 Use the `benchmark` preset and `scripts/reproduce.sh` to reproduce book
@@ -54,12 +58,12 @@ definitions and interpretation limits.
 
 ## Verification
 
-The suite has 91 GoogleTest cases covering semantic and boundary behavior,
+The suite has 92 GoogleTest cases covering semantic and boundary behavior,
 seeded differential streams, queue concurrency and backpressure, journal
 round-trips and torn-tail recovery, restart replay, and depth reconstruction.
-All 91 pass locally in Debug, Release, and Address/UndefinedBehavior sanitizer
-builds. These checks do not establish power-loss durability, venue correctness,
-tail latency, or production readiness.
+All 92 pass locally in Debug, Release, Address/UndefinedBehavior, and Thread
+Sanitizer builds. These checks do not establish power-loss durability, venue
+correctness, tail latency, or production readiness.
 
 ## Scope and non-goals
 

@@ -52,3 +52,18 @@ jobs:
         run: cmake --build --preset sanitizers --parallel
       - name: Test
         run: ctest --test-dir build/sanitizers --output-on-failure
+
+  thread-sanitizer:
+    name: Thread Sanitizer
+    runs-on: ubuntu-24.04
+    env:
+      CC: clang
+      CXX: clang++
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake --preset thread-sanitizer
+      - name: Build
+        run: cmake --build --preset thread-sanitizer --parallel
+      - name: Test
+        run: ctest --test-dir build/thread-sanitizer --output-on-failure

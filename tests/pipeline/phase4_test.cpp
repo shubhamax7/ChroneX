@@ -30,7 +30,7 @@ TEST(SpscRingTest, ReportsFullAndEmptyWithoutLosingOrder) {
 }
 
 TEST(SpscRingTest, PreservesOrderAcrossProducerAndConsumerThreads) {
-  constexpr std::uint64_t kCount = 100'000;
+  constexpr std::uint64_t kCount = 1'000'000;
   SpscRing<std::uint64_t, 128> queue;
   std::thread producer([&] {
     for (std::uint64_t value = 0; value < kCount; ++value)
@@ -48,13 +48,15 @@ TEST(SpscRingTest, PreservesOrderAcrossProducerAndConsumerThreads) {
 }
 
 TEST(MatchingPipelineTest, BackpressureAndShutdownPreserveAcceptedCommandOrder) {
-  MatchingPipeline<2> pipeline(BookConfig{.price_max = 1'000, .quantity_max = 1'000});
+  constexpr CommandSequence kCommandCount = 5'000;
+  MatchingPipeline<2> pipeline(BookConfig{.price_max = 10'000, .quantity_max = 1'000});
   std::vector<CommandSequence> seen;
-  for (CommandSequence sequence = 1; sequence <= 20; ++sequence) {
+  seen.reserve(static_cast<std::size_t>(kCommandCount));
+  for (CommandSequence sequence = 1; sequence <= kCommandCount; ++sequence) {
     Command command{.sequence = sequence,
                     .body = LimitGtc{.order_id = sequence,
                                      .side = Side::Buy,
-                                     .price = static_cast<Price>(100 - sequence),
+                                     .price = static_cast<Price>(10'000 - sequence),
                                      .quantity = 1}};
     while (!pipeline.try_submit(std::move(command))) {
       if (auto result = pipeline.try_receive())
@@ -64,16 +66,44 @@ TEST(MatchingPipelineTest, BackpressureAndShutdownPreserveAcceptedCommandOrder) 
       command = Command{.sequence = sequence,
                         .body = LimitGtc{.order_id = sequence,
                                          .side = Side::Buy,
-                                         .price = static_cast<Price>(100 - sequence),
+                                         .price = static_cast<Price>(10'000 - sequence),
                                          .quantity = 1}};
     }
     while (auto result = pipeline.try_receive()) seen.push_back(result->sequence);
   }
   auto final_results = pipeline.drain_and_stop();
   for (auto& result : final_results) seen.push_back(result.sequence);
-  ASSERT_EQ(seen.size(), 20U);
+  ASSERT_EQ(seen.size(), static_cast<std::size_t>(kCommandCount));
   for (std::size_t i = 0; i < seen.size(); ++i) EXPECT_EQ(seen[i], i + 1U);
   EXPECT_FALSE(pipeline.try_submit(Command{}));
+}
+
+TEST(MatchingPipelineTest, ShutdownDrainsAWorkerBlockedByFullResultQueue) {
+  MatchingPipeline<4> pipeline(BookConfig{.price_max = 100'000, .quantity_max = 1'000});
+  std::size_t accepted = 0U;
+  constexpr std::size_t kOutstandingCapacity = 4U + 4U + 1U;
+  while (accepted < kOutstandingCapacity) {
+    const auto sequence = static_cast<CommandSequence>(accepted + 1U);
+    const Command command{.sequence = sequence,
+                          .body = LimitGtc{.order_id = sequence,
+                                           .side = Side::Buy,
+                                           .price = static_cast<Price>(100'000 - sequence),
+                                           .quantity = 1}};
+    if (!pipeline.try_submit(command)) {
+      std::this_thread::yield();
+      continue;
+    }
+    ++accepted;
+  }
+  ASSERT_GT(accepted, 4U);
+  const auto results = pipeline.drain_and_stop();
+  ASSERT_EQ(results.size(), accepted);
+  for (std::size_t i = 0; i < results.size(); ++i) {
+    EXPECT_EQ(results[i].sequence, i + 1U);
+    ASSERT_EQ(results[i].events.size(), 2U);
+    EXPECT_EQ(results[i].events.front().kind, EventKind::Acknowledged);
+    EXPECT_EQ(results[i].events.back().kind, EventKind::Rested);
+  }
 }
 
 class JournalTest : public ::testing::Test {
