@@ -8,6 +8,24 @@ permissions:
   contents: read
 
 jobs:
+  package-consumer:
+    name: Installed package consumer
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure release library
+        run: cmake --preset release
+      - name: Build and install library
+        run: |
+          cmake --build --preset release --parallel
+          cmake --install build/release --prefix "$RUNNER_TEMP/chronex-install"
+      - name: Configure downstream consumer
+        run: cmake -S tests/consumer -B build/package-consumer -DCMAKE_PREFIX_PATH="$RUNNER_TEMP/chronex-install"
+      - name: Build downstream consumer
+        run: cmake --build build/package-consumer --parallel
+      - name: Run downstream consumer
+        run: ctest --test-dir build/package-consumer --output-on-failure
+
   build-and-test:
     name: ${{ matrix.compiler }} / ${{ matrix.preset }}
     runs-on: ubuntu-24.04

@@ -1,14 +1,14 @@
 # ChroneX release review
 
-Review date: 2026-11-12
-Reviewed scope: delivery Phases 1-7 (P0-P11)
-Project version: 0.3.0
+Review date: 2026-11-13
+Reviewed scope: delivery Phases 1-8 (P0-P12)
+Project version: 0.4.0
 
 ## Decision
 
-Phase 7 is complete for the educational prototype. ChroneX is suitable for
+Phase 8 is complete for the educational prototype. ChroneX is suitable for
 review, local development, and reproducible experiments. It is not approved as
-a production matching engine or as a v1.0.0 release. The version remains 0.3.0
+a production matching engine or as a v1.0.0 release. The version remains 0.4.0
 until the production blockers below are addressed and independently reviewed.
 
 ## Evidence
@@ -68,9 +68,11 @@ commit before distributing a tagged binary.
    distributions and queue-full behavior, test representative order-flow
    distributions, and compare the reference and optimized policies under the
    same measured setup. The pipeline currently uses the reference book.
-5. **Release engineering:** verify hosted CI, add install/export and consumer
-   build checks, publish supported platform/compiler combinations, and define
-   compatibility policy for the journal format and public C++ API.
+5. **Release engineering:** observe hosted CI results for the new package
+   consumer job, publish supported platform/compiler combinations, and define
+   compatibility policy for the journal format and public C++ API. The local
+   install/export consumer path is now covered, but API and binary compatibility
+   are not promised.
 
 ## Limitations users must account for
 

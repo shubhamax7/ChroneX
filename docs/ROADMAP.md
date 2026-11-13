@@ -1,7 +1,7 @@
 # ChroneX roadmap
 
 The original research plan has nine technical stages grouped into five delivery
-phases. Phases 6 and 7 are post-plan hardening stages added to address the
+phases. Phases 6 through 8 are post-plan hardening stages added to address the
 documented release blockers.
 
 | Delivery phase | Technical roadmap stages | Exit criterion |
@@ -13,6 +13,7 @@ documented release blockers.
 | 5. Release quality | P8-P9 | End-to-end evidence, reproducibility guide, limitations, v1.0 review. |
 | 6. Journal hardening | P10 (post-plan) | Native record synchronization and exhaustive torn-frame recovery. |
 | 7. Concurrency validation | P11 (post-plan) | ThreadSanitizer, million-item queue stress, and pipeline saturation/shutdown proof. |
+| 8. Package interoperability | P12 (post-plan) | Installable CMake config/target, public headers, and a downstream consumer build in CI. |
 
 ## Phase 1 acceptance criteria
 
@@ -91,3 +92,14 @@ The CI job runs the same suite on Linux; hosted results remain to be observed.
 The project version is 0.3.0. This stage validates the one-producer,
 one-consumer topology, not arbitrary multi-producer use or production overload
 latency.
+
+## Phase 8 handoff (post-plan package interoperability)
+
+Phase 8 is complete. P12 installs the public headers, static library, license,
+and versioned CMake package with the exported `ChroneX::chronex` target. The
+package config resolves the Threads dependency for downstream projects. CI
+installs the Release build and separately configures, builds, and runs a small
+consumer project using only the installed package. The project version is
+0.4.0; the hosted result for the new consumer job must be observed before
+distribution. This verifies CMake package consumption on the CI platform, not
+binary ABI stability or support for every compiler and operating system.

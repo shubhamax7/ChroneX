@@ -7,7 +7,7 @@ measured behavior matter more than premature low-latency claims.
 > **Project name:** ChroneX. The codebase and all project artifacts use this
 > name exclusively.
 
-## Current status: Phase 7 complete
+## Current status: Phase 8 complete
 
 ChroneX includes a deterministic price-time-priority matching engine, an
 optimized pooled book policy, a bounded SPSC execution pipeline, a checksummed
@@ -76,3 +76,19 @@ reference book; the optimized book is separately verified and is not yet
 integrated into that pipeline.
 
 See [LICENSE](LICENSE) for use terms.
+
+## Install and consume
+
+ChroneX installs a CMake package that exports `ChroneX::chronex`, its public
+headers, and the required Threads dependency. Build and install it with:
+
+```sh
+cmake --preset release
+cmake --build --preset release --parallel
+cmake --install build/release --prefix "$HOME/.local"
+```
+
+A downstream CMake project can then use `find_package(ChroneX CONFIG REQUIRED)`
+and link `ChroneX::chronex`. Set `CMAKE_PREFIX_PATH` to the installation prefix
+when it is not in CMake's default search paths. The installed-package consumer
+in `tests/consumer` is also built in CI.

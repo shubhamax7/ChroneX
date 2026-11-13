@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.24)
 
-project(ChroneX VERSION 0.3.0 LANGUAGES CXX)
+project(ChroneX VERSION 0.4.0 LANGUAGES CXX)
 
 find_package(Threads REQUIRED)
 
@@ -37,15 +37,53 @@ endif()
 # The Phase 2 reference implementation intentionally favors inspectable,
 # standards-based containers over optimized storage policies.
 add_library(chronex STATIC src/oracle/reference_book.cpp)
+add_library(ChroneX::chronex ALIAS chronex)
 target_sources(chronex PRIVATE
   src/book/optimized_book.cpp
   src/journal/command_journal.cpp
   src/market_data/depth_reconstructor.cpp
 )
-target_link_libraries(chronex PUBLIC Threads::Threads PRIVATE chronex_options)
+target_link_libraries(chronex PUBLIC Threads::Threads)
+target_compile_options(chronex PRIVATE
+  $<TARGET_PROPERTY:chronex_options,INTERFACE_COMPILE_OPTIONS>
+)
 target_include_directories(chronex PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
+)
+
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
+
+install(TARGETS chronex
+  EXPORT ChroneXTargets
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
+install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+install(FILES LICENSE DESTINATION ${CMAKE_INSTALL_DATADIR}/licenses/ChroneX)
+install(EXPORT ChroneXTargets
+  FILE ChroneXTargets.cmake
+  NAMESPACE ChroneX::
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/ChroneX
+)
+
+configure_package_config_file(
+  cmake/ChroneXConfig.cmake.in
+  ${CMAKE_CURRENT_BINARY_DIR}/ChroneXConfig.cmake
+  INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/ChroneX
+)
+write_basic_package_version_file(
+  ${CMAKE_CURRENT_BINARY_DIR}/ChroneXConfigVersion.cmake
+  VERSION ${PROJECT_VERSION}
+  COMPATIBILITY SameMinorVersion
+)
+install(FILES
+  ${CMAKE_CURRENT_BINARY_DIR}/ChroneXConfig.cmake
+  ${CMAKE_CURRENT_BINARY_DIR}/ChroneXConfigVersion.cmake
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/ChroneX
 )
 
 include(CTest)
