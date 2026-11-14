@@ -17,7 +17,10 @@ class JournaledMatchingPipeline {
  public:
   explicit JournaledMatchingPipeline(const std::filesystem::path& journal_path,
                                      BookConfig config = {})
-      : journal_(journal_path), pipeline_(config, CommandJournal::recover(journal_path)) {}
+      : journal_(journal_path),
+        pipeline_(config, [path = journal_path](ReferenceBook& book) {
+          return CommandJournal::replay_into(path, book);
+        }) {}
 
   [[nodiscard]] bool try_submit(const Command& command) {
     if (!pipeline_.has_capacity()) return false;

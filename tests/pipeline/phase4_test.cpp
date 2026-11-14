@@ -139,6 +139,11 @@ TEST_F(JournalTest, EncodesEveryCommandAndReplaysIdenticalEventsAndState) {
   EXPECT_EQ(recovered.command_events, direct.command_events);
   EXPECT_EQ(recovered.bids, direct.bids);
   EXPECT_EQ(recovered.asks, direct.asks);
+
+  ReferenceBook recovered_book;
+  EXPECT_EQ(CommandJournal::replay_into(path_, recovered_book), commands.back().sequence);
+  EXPECT_EQ(recovered_book.resting_orders(Side::Buy), direct.bids);
+  EXPECT_EQ(recovered_book.resting_orders(Side::Sell), direct.asks);
 }
 
 TEST_F(JournalTest, TruncatesTornTailAndContinuesAtNextSequence) {

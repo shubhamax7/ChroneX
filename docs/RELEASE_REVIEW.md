@@ -1,14 +1,14 @@
 # ChroneX release review
 
 Review date: 2026-11-14
-Reviewed scope: delivery Phases 1-9 (P0-P13)
-Project version: 0.5.0
+Reviewed scope: delivery Phases 1-10 (P0-P14)
+Project version: 0.6.0
 
 ## Decision
 
-Phase 9 is complete for the educational prototype. ChroneX is suitable for
+Phase 10 is complete for the educational prototype. ChroneX is suitable for
 review, local development, and reproducible experiments. It is not approved as
-a production matching engine or as a v1.0.0 release. The version remains 0.5.0
+a production matching engine or as a v1.0.0 release. The version remains 0.6.0
 until the production blockers below are addressed and independently reviewed.
 
 ## Evidence
@@ -58,9 +58,10 @@ commit before distributing a tagged binary.
 
 ## Blockers before v1.0.0 or production use
 
-1. **Journal scale:** recovery loads and replays the full history in memory.
-   Add a checkpoint/snapshot format, compaction, version migration, and
-   retention policy before long-lived use.
+1. **Journal scale:** replay now streams frames without materializing the log,
+   but still scans and applies the full history at every restart. Add a
+   checkpoint/snapshot format, safe compaction, version migration, and retention
+   policy before long-lived use.
 2. **Concurrency validation:** observe the hosted Linux ThreadSanitizer CI job
    and add longer-duration soak and measured overload tests. Local ThreadSanitizer
    and bounded saturation checks pass, but they do not establish sustained

@@ -41,6 +41,14 @@ the same reference engine and returns the event vector for every command plus
 the final resting sides. Deterministic replay assumes the same ChroneX command
 semantics and configuration.
 
+Journal scans validate one bounded frame at a time. `CommandJournal::recover`
+still returns a vector for callers that need the command list; `replay_into`
+rebuilds an empty book directly, and `replay_journal` processes the file without
+materializing a separate command vector. Journaled pipeline startup uses the
+streaming path. This bounds scanner memory to one frame plus the book state, but
+does not shorten restart time or replace checkpoints. `ReplayResult` also keeps
+all command events by design.
+
 The default `JournalSyncPolicy::EachAppend` writes through the native file API
 and waits for `fsync` on POSIX or `FlushFileBuffers` on Windows before returning
 success. On POSIX, creation of a new journal also synchronizes its containing
@@ -89,7 +97,8 @@ messages into this absolute-update model.
 - SPSC enqueue/dequeue: O(1), bounded storage O(N), one producer and one
   consumer only.
 - Journal append: O(command payload size) plus the selected OS sync latency;
-  recovery is O(number of commands) time and memory.
+  streaming recovery takes O(number of commands) time and O(frame size) extra
+  memory, excluding book state and events retained by the caller.
 - Depth level update: O(log L) time in the number of stored price levels;
   snapshots and returned views are O(L).
 

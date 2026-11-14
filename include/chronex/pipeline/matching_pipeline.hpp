@@ -3,6 +3,7 @@
 #include <atomic>
 #include <cstddef>
 #include <exception>
+#include <functional>
 #include <limits>
 #include <optional>
 #include <stdexcept>
@@ -44,8 +45,19 @@ class MatchingPipeline {
         next_sequence_ = command.sequence + 1U;
       }
     }
-    worker_running_.store(true, std::memory_order_relaxed);
-    worker_ = std::thread([this] { run(); });
+    start_worker();
+  }
+
+  MatchingPipeline(BookConfig config,
+                   std::function<CommandSequence(ReferenceBook&)> recover_into_book)
+      : book_(config) {
+    const CommandSequence last_sequence = recover_into_book(book_);
+    if (last_sequence == std::numeric_limits<CommandSequence>::max()) {
+      sequence_exhausted_ = true;
+    } else {
+      next_sequence_ = last_sequence + 1U;
+    }
+    start_worker();
   }
   ~MatchingPipeline() {
     try {
@@ -97,6 +109,11 @@ class MatchingPipeline {
   }
 
  private:
+  void start_worker() {
+    worker_running_.store(true, std::memory_order_relaxed);
+    worker_ = std::thread([this] { run(); });
+  }
+
   void run() noexcept {
     try {
       for (;;) {

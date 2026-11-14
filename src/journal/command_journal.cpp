@@ -4,6 +4,7 @@
 #include <array>
 #include <bit>
 #include <cstdint>
+#include <functional>
 #include <fstream>
 #include <limits>
 #include <stdexcept>
@@ -247,44 +248,55 @@ Integer decode_integer(const Bytes& bytes, std::size_t& offset) {
 }
 
 struct ScanResult {
-  std::vector<Command> commands;
   std::uintmax_t valid_bytes{};
+  CommandSequence last_sequence{};
 };
 
-[[nodiscard]] ScanResult scan(const std::filesystem::path& path) {
+[[nodiscard]] ScanResult scan(const std::filesystem::path& path,
+                              const std::function<void(const Command&)>& visit = {}) {
   std::ifstream input(path, std::ios::binary);
   if (!input) {
     if (!std::filesystem::exists(path)) return {};
     fail("cannot open file for reading");
   }
-  Bytes bytes((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
-  if (!input.eof() && input.fail()) fail("failed while reading file");
 
   ScanResult result;
-  std::size_t offset = 0U;
   CommandSequence expected_sequence = 1U;
-  while (offset < bytes.size()) {
-    if (bytes.size() - offset < kHeaderSize) break;
+  bool sequence_exhausted = false;
+  for (;;) {
+    std::array<std::uint8_t, kHeaderSize> header{};
+    input.read(reinterpret_cast<char*>(header.data()), static_cast<std::streamsize>(header.size()));
+    const auto header_bytes = static_cast<std::size_t>(input.gcount());
+    if (header_bytes == 0U && input.eof()) break;
+    if (input.bad() || (input.fail() && !input.eof())) fail("failed while reading frame header");
+    if (sequence_exhausted) fail("command sequence exhausted");
+    if (header_bytes < kHeaderSize) break;
+
     for (std::size_t i = 0; i < kMagic.size(); ++i) {
-      if (bytes[offset + i] != kMagic[i]) fail("bad frame magic or unsupported version");
+      if (header[i] != kMagic[i]) fail("bad frame magic or unsupported version");
     }
-    std::size_t header_offset = offset + 4U;
-    const auto payload_size = decode_integer<std::uint32_t>(bytes, header_offset);
-    const auto expected_checksum = decode_integer<std::uint32_t>(bytes, header_offset);
+    Bytes encoded_header(header.begin(), header.end());
+    std::size_t header_offset = 4U;
+    const auto payload_size = decode_integer<std::uint32_t>(encoded_header, header_offset);
+    const auto expected_checksum = decode_integer<std::uint32_t>(encoded_header, header_offset);
     if (payload_size > kMaxPayloadSize) fail("frame payload exceeds limit");
-    if (bytes.size() - header_offset < payload_size) break;
-    Bytes payload(bytes.begin() + static_cast<std::ptrdiff_t>(header_offset),
-                  bytes.begin() + static_cast<std::ptrdiff_t>(header_offset + payload_size));
+    Bytes payload(payload_size);
+    input.read(reinterpret_cast<char*>(payload.data()), static_cast<std::streamsize>(payload.size()));
+    const auto payload_bytes = static_cast<std::size_t>(input.gcount());
+    if (input.bad() || (input.fail() && !input.eof())) fail("failed while reading frame payload");
+    if (payload_bytes < payload_size) break;
+
     if (checksum(payload) != expected_checksum) fail("checksum mismatch");
-    auto command = decode_command(payload);
+    const auto command = decode_command(payload);
     if (command.sequence != expected_sequence) fail("command sequence is not contiguous");
-    result.commands.push_back(std::move(command));
-    if (expected_sequence == std::numeric_limits<CommandSequence>::max() &&
-        offset + kHeaderSize + payload_size < bytes.size())
-      fail("command sequence exhausted");
-    ++expected_sequence;
-    offset = header_offset + payload_size;
-    result.valid_bytes = static_cast<std::uintmax_t>(offset);
+    if (visit) visit(command);
+    result.last_sequence = command.sequence;
+    result.valid_bytes += static_cast<std::uintmax_t>(kHeaderSize) + payload_size;
+    if (expected_sequence == std::numeric_limits<CommandSequence>::max()) {
+      sequence_exhausted = true;
+    } else {
+      ++expected_sequence;
+    }
   }
   return result;
 }
@@ -307,7 +319,7 @@ struct CommandJournal::Impl {
         std::filesystem::exists(this->file_path) ? std::filesystem::file_size(this->file_path) : 0U;
     if (existing.valid_bytes < file_size)
       std::filesystem::resize_file(this->file_path, existing.valid_bytes);
-    last_sequence = existing.commands.empty() ? 0U : existing.commands.back().sequence;
+    last_sequence = existing.last_sequence;
     output = std::make_unique<NativeAppendFile>(this->file_path);
     if (sync_policy == JournalSyncPolicy::EachAppend) {
 #if !defined(_WIN32)
@@ -356,7 +368,15 @@ const std::filesystem::path& CommandJournal::path() const noexcept {
 }
 
 std::vector<Command> CommandJournal::recover(const std::filesystem::path& path) {
-  return scan(path).commands;
+  std::vector<Command> commands;
+  static_cast<void>(scan(path, [&commands](const Command& command) { commands.push_back(command); }));
+  return commands;
+}
+
+CommandSequence CommandJournal::replay_into(const std::filesystem::path& path,
+                                            ReferenceBook& book) {
+  return scan(path, [&book](const Command& command) { static_cast<void>(book.process(command)); })
+      .last_sequence;
 }
 
 ReplayResult replay_commands(const std::vector<Command>& commands, const BookConfig config) {
@@ -370,7 +390,14 @@ ReplayResult replay_commands(const std::vector<Command>& commands, const BookCon
 }
 
 ReplayResult replay_journal(const std::filesystem::path& path, const BookConfig config) {
-  return replay_commands(CommandJournal::recover(path), config);
+  ReferenceBook book(config);
+  ReplayResult result;
+  static_cast<void>(scan(path, [&book, &result](const Command& command) {
+    result.command_events.push_back(book.process(command));
+  }));
+  result.bids = book.resting_orders(Side::Buy);
+  result.asks = book.resting_orders(Side::Sell);
+  return result;
 }
 
 }  // namespace chronex

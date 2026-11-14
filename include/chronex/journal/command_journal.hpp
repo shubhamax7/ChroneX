@@ -32,6 +32,13 @@ class CommandJournal {
   // complete frame with an invalid checksum, version, or sequence is rejected.
   [[nodiscard]] static std::vector<Command> recover(const std::filesystem::path& path);
 
+  // Replays complete frames directly into an empty book without materializing
+  // the command history. Returns the last recovered command sequence (zero if
+  // the journal is empty). If recovery throws, the book may contain a prefix
+  // of the journal and should be discarded.
+  [[nodiscard]] static CommandSequence replay_into(const std::filesystem::path& path,
+                                                   ReferenceBook& book);
+
  private:
   struct Impl;
   std::unique_ptr<Impl> impl_;

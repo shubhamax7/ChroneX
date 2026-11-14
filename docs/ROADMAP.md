@@ -1,7 +1,7 @@
 # ChroneX roadmap
 
 The original research plan has nine technical stages grouped into five delivery
-phases. Phases 6 through 9 are post-plan hardening stages added to address the
+phases. Phases 6 through 10 are post-plan hardening stages added to address the
 documented release blockers.
 
 | Delivery phase | Technical roadmap stages | Exit criterion |
@@ -15,6 +15,7 @@ documented release blockers.
 | 7. Concurrency validation | P11 (post-plan) | ThreadSanitizer, million-item queue stress, and pipeline saturation/shutdown proof. |
 | 8. Package interoperability | P12 (post-plan) | Installable CMake config/target, public headers, and a downstream consumer build in CI. |
 | 9. Pipeline throughput evidence | P13 (post-plan) | Reproducible end-to-end SPSC throughput workload with bounded-queue pressure reporting. |
+| 10. Streaming journal recovery | P14 (post-plan) | Frame-at-a-time validation and book replay without materializing the full command log. |
 
 ## Phase 1 acceptance criteria
 
@@ -117,3 +118,15 @@ are recorded under `results/local-macos/2026-11-14/`. This provides an initial
 end-to-end throughput baseline; latency percentiles, representative production
 flow mixes, journal sync cost, and sustained overload behavior remain open. The
 project version is 0.5.0.
+
+## Phase 10 handoff (post-plan streaming recovery)
+
+Phase 10 adds P14. Journal scans now read one bounded frame at a time and send
+validated commands to a visitor instead of first loading the whole file into a
+byte vector. `CommandJournal::replay_into` and `replay_journal` stream commands
+directly through a book; `JournaledMatchingPipeline` uses this path during
+restart. This removes the full command-vector copy from pipeline recovery and
+the full-file byte buffer from all scans. Replay remains O(history) time, and
+`ReplayResult` intentionally retains per-command event vectors. Checkpoints,
+compaction, and retention are still needed for long-lived journals. The project
+version is 0.6.0.
