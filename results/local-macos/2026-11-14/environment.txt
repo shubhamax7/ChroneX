@@ -1,0 +1,9 @@
+timestamp_utc=2026-11-14T15:29:47Z
+git_commit=c5660e2ee111cafed4f00f16efa1c1a641f51271
+git_dirty=true
+os=Darwin Mac 27.2.0 Darwin Kernel Version 27.2.0: Wed Oct 14 23:47:07 PDT 2026; root:xnu-13432.41.4~25/RELEASE_ARM64_T8132 arm64
+cpu=unknown
+compiler=Apple clang version 21.0.0 (clang-2100.1.1.101)
+cmake=cmake version 4.4.5
+ninja=1.13.2
+power_mode=record manually if known; no pinning performed by this script

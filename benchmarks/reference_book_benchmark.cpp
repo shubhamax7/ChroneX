@@ -1,10 +1,12 @@
 #include <benchmark/benchmark.h>
 
 #include <cstdint>
+#include <thread>
 #include <vector>
 
 #include "chronex/book/optimized_book.hpp"
 #include "chronex/oracle/reference_book.hpp"
+#include "chronex/pipeline/matching_pipeline.hpp"
 
 namespace chronex {
 namespace {
@@ -156,6 +158,49 @@ void BM_ReferenceBookAllocationProbe(benchmark::State& state) {
   state.SetLabel("global new calls per resting add; includes output events");
 }
 BENCHMARK(BM_ReferenceBookAllocationProbe)->Iterations(10)->Unit(benchmark::kMillisecond);
+
+void BM_MatchingPipelineBalancedAdds(benchmark::State& state) {
+  constexpr std::size_t kCommandsPerBatch = 4'096;
+  const auto bodies = make_balanced_workload(kCommandsPerBatch);
+  std::vector<Command> workload;
+  workload.reserve(bodies.size());
+  CommandSequence sequence = 1;
+  for (const auto& body : bodies) workload.push_back(Command{sequence++, body});
+
+  std::uint64_t full_retries = 0;
+  for (auto _ : state) {
+    state.PauseTiming();
+    MatchingPipeline<256> pipeline;
+    state.ResumeTiming();
+
+    std::size_t submitted = 0;
+    std::size_t received = 0;
+    while (received < workload.size()) {
+      if (submitted < workload.size() && pipeline.try_submit(workload[submitted])) {
+        ++submitted;
+      } else if (submitted < workload.size()) {
+        ++full_retries;
+      }
+
+      if (pipeline.try_receive()) {
+        ++received;
+      } else {
+        std::this_thread::yield();
+      }
+    }
+    benchmark::DoNotOptimize(received);
+    benchmark::ClobberMemory();
+    state.PauseTiming();
+    static_cast<void>(pipeline.drain_and_stop());
+    state.ResumeTiming();
+  }
+  state.SetItemsProcessed(state.iterations() * static_cast<std::int64_t>(workload.size()));
+  state.counters["queue_full_retries/command"] =
+      static_cast<double>(full_retries) /
+      (static_cast<double>(state.iterations()) * static_cast<double>(workload.size()));
+  state.SetLabel("SPSC pipeline, balanced non-crossing GTC adds; thread startup excluded");
+}
+BENCHMARK(BM_MatchingPipelineBalancedAdds)->Unit(benchmark::kMillisecond);
 
 }  // namespace
 }  // namespace chronex

@@ -19,6 +19,11 @@ network, or production-latency claims.
 - `BM_OptimizedBookBalancedAdds`: the same balanced-add streams using the
   pooled bitmap book. Construction is paused out of the timed region for both
   balanced-add cases, so these compare command processing after initialization.
+- `BM_MatchingPipelineBalancedAdds`: a 4,096-command balanced GTC stream through
+  the bounded SPSC pipeline. Thread startup and shutdown are paused out of the
+  timed region; submit, queue handoff, matching, and result receipt are timed.
+  The `queue_full_retries/command` counter reports input-queue full retries per
+  command. This is a throughput workload, not a latency distribution or soak.
 
 Workload construction is outside each timed loop where applicable. The engine
 returns an allocated vector of events from each command; therefore the current
@@ -42,7 +47,8 @@ compiler, tool versions, commit and dirty state, then saves raw Google Benchmark
 JSON. It does not pin CPU affinity, disable turbo, or change power settings.
 Record those controls manually when used. Compare results only when the workload,
 compiler flags, machine, and measurement conditions are comparable.
-The default filter includes the reference and optimized book policies and runs
+The default filter includes the reference and optimized book policies and the
+SPSC pipeline workload, and runs
 five repetitions with a 50 ms minimum measurement window per repetition. Pass a
 Google Benchmark regular-expression filter as the second argument to narrow
 the run. Increase the minimum window for more stable measurements; the default
@@ -62,6 +68,13 @@ the figures as preliminary. Dense-array construction is excluded from that
 comparison and has material time and memory cost at large configured price
 ranges. Do not extrapolate this result to other workloads or production
 latency. The suite still does not collect hardware counters, capture tail
-latency for an asynchronous pipeline, or validate against market data. Preserve
-raw output, compare on the same machine and workload, rerun correctness checks,
+latency distributions for an asynchronous pipeline, or validate against market
+data. Preserve raw output, compare on the same machine and workload, rerun correctness checks,
 and retain rejected results.
+
+The first pipeline run is preserved in
+`results/local-macos/2026-11-14/`. Its five repetitions measured a median
+2.99M commands/s and 0.403 full-queue retries per command. This is a single
+workstation baseline: CPU model and frequency were unavailable to the tools,
+thread affinity could not be set, and the host reported elevated load. Treat
+the numbers as a reproducibility example, not a performance claim.

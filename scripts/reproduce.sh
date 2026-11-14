@@ -10,7 +10,7 @@ if [[ $# -lt 1 || $# -gt 2 ]]; then
 fi
 
 results_dir="$1"
-filter="${2:-BM_(Reference|Optimized)Book.*}"
+filter="${2:-BM_(Reference|Optimized)Book.*|BM_MatchingPipeline.*}"
 mkdir -p "$results_dir"
 
 cmake --preset benchmark

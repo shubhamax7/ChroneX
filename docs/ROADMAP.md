@@ -1,7 +1,7 @@
 # ChroneX roadmap
 
 The original research plan has nine technical stages grouped into five delivery
-phases. Phases 6 through 8 are post-plan hardening stages added to address the
+phases. Phases 6 through 9 are post-plan hardening stages added to address the
 documented release blockers.
 
 | Delivery phase | Technical roadmap stages | Exit criterion |
@@ -14,6 +14,7 @@ documented release blockers.
 | 6. Journal hardening | P10 (post-plan) | Native record synchronization and exhaustive torn-frame recovery. |
 | 7. Concurrency validation | P11 (post-plan) | ThreadSanitizer, million-item queue stress, and pipeline saturation/shutdown proof. |
 | 8. Package interoperability | P12 (post-plan) | Installable CMake config/target, public headers, and a downstream consumer build in CI. |
+| 9. Pipeline throughput evidence | P13 (post-plan) | Reproducible end-to-end SPSC throughput workload with bounded-queue pressure reporting. |
 
 ## Phase 1 acceptance criteria
 
@@ -103,3 +104,16 @@ consumer project using only the installed package. The project version is
 0.4.0; the hosted result for the new consumer job must be observed before
 distribution. This verifies CMake package consumption on the CI platform, not
 binary ABI stability or support for every compiler and operating system.
+
+## Phase 9 handoff (post-plan pipeline throughput)
+
+Phase 9 adds P13, a reproducible 4,096-command balanced-add workload through
+the asynchronous SPSC matching pipeline. It records aggregate commands per
+second and bounded-queue full retries per command, while excluding worker
+thread startup and shutdown. The standard reproduction script now includes
+this workload by default. Five local repetitions measured a median 2.99M
+commands/s with 0.403 queue-full retries per command; raw data and limitations
+are recorded under `results/local-macos/2026-11-14/`. This provides an initial
+end-to-end throughput baseline; latency percentiles, representative production
+flow mixes, journal sync cost, and sustained overload behavior remain open. The
+project version is 0.5.0.

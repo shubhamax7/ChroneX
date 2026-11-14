@@ -1,14 +1,14 @@
 # ChroneX release review
 
-Review date: 2026-11-13
-Reviewed scope: delivery Phases 1-8 (P0-P12)
-Project version: 0.4.0
+Review date: 2026-11-14
+Reviewed scope: delivery Phases 1-9 (P0-P13)
+Project version: 0.5.0
 
 ## Decision
 
-Phase 8 is complete for the educational prototype. ChroneX is suitable for
+Phase 9 is complete for the educational prototype. ChroneX is suitable for
 review, local development, and reproducible experiments. It is not approved as
-a production matching engine or as a v1.0.0 release. The version remains 0.4.0
+a production matching engine or as a v1.0.0 release. The version remains 0.5.0
 until the production blockers below are addressed and independently reviewed.
 
 ## Evidence
@@ -31,6 +31,11 @@ until the production blockers below are addressed and independently reviewed.
 - `scripts/reproduce.sh` builds the benchmark target, runs five repetitions by
   default, and stores raw JSON with host/compiler/commit metadata. It includes
   both the reference and optimized book policies by default.
+- The Phase 9 SPSC pipeline workload was run five times on the developer
+  workstation on 2026-11-14. Median throughput was 2.99M commands/s with 0.403
+  full-queue retries per command. Raw JSON and environment metadata are in
+  `results/local-macos/2026-11-14/`; CPU model/frequency were unavailable and
+  affinity could not be set, so this is a preliminary local baseline only.
 
 The local verification is evidence from one workstation, not a substitute for
 observed hosted CI runs on all matrix entries. CI should be green for the final
@@ -64,10 +69,11 @@ commit before distributing a tagged binary.
    including its snapshot sequence rules, incremental updates, corrections,
    and resynchronization workflow. Current depth reconstruction is deliberately
    venue-neutral.
-4. **Performance evidence:** benchmark the pipeline end to end, report latency
-   distributions and queue-full behavior, test representative order-flow
-   distributions, and compare the reference and optimized policies under the
-   same measured setup. The pipeline currently uses the reference book.
+4. **Performance evidence:** report pipeline latency distributions, test
+   representative order-flow distributions, and compare reference and optimized
+   policies under the same measured setup. The new balanced-add pipeline
+   benchmark records throughput and queue-full retries, but not per-command
+   latency. The pipeline still uses the reference book.
 5. **Release engineering:** observe hosted CI results for the new package
    consumer job, publish supported platform/compiler combinations, and define
    compatibility policy for the journal format and public C++ API. The local

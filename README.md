@@ -7,7 +7,7 @@ measured behavior matter more than premature low-latency claims.
 > **Project name:** ChroneX. The codebase and all project artifacts use this
 > name exclusively.
 
-## Current status: Phase 8 complete
+## Current status: Phase 9 complete
 
 ChroneX includes a deterministic price-time-priority matching engine, an
 optimized pooled book policy, a bounded SPSC execution pipeline, a checksummed
@@ -52,9 +52,9 @@ cmake --build --preset thread-sanitizer --parallel
 ctest --test-dir build/thread-sanitizer --output-on-failure
 ```
 
-Use the `benchmark` preset and `scripts/reproduce.sh` to reproduce book
-benchmarks. See [benchmarking guide](docs/BENCHMARKING.md) for workload
-definitions and interpretation limits.
+Use the `benchmark` preset and `scripts/reproduce.sh` to reproduce book and
+SPSC pipeline benchmarks. See [benchmarking guide](docs/BENCHMARKING.md) for
+workload definitions and interpretation limits.
 
 ## Verification
 
