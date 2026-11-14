@@ -106,6 +106,35 @@ TEST(MatchingPipelineTest, ShutdownDrainsAWorkerBlockedByFullResultQueue) {
   }
 }
 
+TEST(ReferenceBookSnapshotTest, RestoresExactFifoAndSequenceState) {
+  ReferenceBook original;
+  static_cast<void>(original.process(
+      Command{1, LimitGtc{.order_id = 1, .side = Side::Buy, .price = 100, .quantity = 5}}));
+  static_cast<void>(original.process(
+      Command{2, LimitGtc{.order_id = 2, .side = Side::Buy, .price = 100, .quantity = 5}}));
+  static_cast<void>(original.process(Command{3, CancelOrder{.order_id = 1}}));
+
+  ReferenceBook restored;
+  const auto snapshot = original.snapshot();
+  restored.restore(snapshot);
+  EXPECT_EQ(restored.snapshot(), snapshot);
+
+  const Command next{4, LimitIoc{.order_id = 3, .side = Side::Sell, .price = 100, .quantity = 2}};
+  EXPECT_EQ(restored.process(next), original.process(next));
+  EXPECT_EQ(restored.snapshot(), original.snapshot());
+}
+
+TEST(ReferenceBookSnapshotTest, RejectsInvalidSnapshotWithoutChangingBook) {
+  ReferenceBook book;
+  static_cast<void>(book.process(
+      Command{1, LimitGtc{.order_id = 1, .side = Side::Buy, .price = 100, .quantity = 5}}));
+  const auto before = book.snapshot();
+  auto invalid = before;
+  invalid.orders[0].price = 0;
+  EXPECT_THROW(book.restore(invalid), std::invalid_argument);
+  EXPECT_EQ(book.snapshot(), before);
+}
+
 class JournalTest : public ::testing::Test {
  protected:
   void SetUp() override {
@@ -113,9 +142,12 @@ class JournalTest : public ::testing::Test {
     path_ = std::filesystem::temp_directory_path() /
             ("chronex-phase4-test-" + std::to_string(nonce) + ".cxj");
     std::filesystem::remove(path_);
+    std::filesystem::remove(path_.string() + ".checkpoint");
   }
   void TearDown() override {
     std::filesystem::remove(path_);
+    std::filesystem::remove(path_.string() + ".checkpoint");
+    std::filesystem::remove(path_.string() + ".checkpoint.tmp");
   }
   std::filesystem::path path_;
 };
@@ -235,6 +267,89 @@ TEST_F(JournalTest, JournaledPipelineReplaysStateBeforeAcceptingNextCommand) {
     EXPECT_EQ(results[0].events[1].kind, EventKind::Filled);
     EXPECT_EQ(results[0].events[1].maker_order_id, 1U);
   }
+}
+
+TEST_F(JournalTest, CheckpointCompactsJournalAndRestoresStateForContinuation) {
+  const BookConfig config{.price_max = 1'000, .quantity_max = 1'000};
+  {
+    JournaledMatchingPipeline<4> pipeline(path_, config);
+    ASSERT_TRUE(pipeline.try_submit(
+        Command{1, LimitGtc{.order_id = 10, .side = Side::Sell, .price = 100, .quantity = 4}}));
+    const auto completed = pipeline.checkpoint_and_compact();
+    ASSERT_EQ(completed.size(), 1U);
+    EXPECT_EQ(completed[0].sequence, 1U);
+  }
+
+  EXPECT_TRUE(CommandJournal::recover(path_).empty());
+  EXPECT_EQ(std::filesystem::file_size(path_), 0U);
+  EXPECT_TRUE(std::filesystem::exists(path_.string() + ".checkpoint"));
+  EXPECT_THROW(JournaledMatchingPipeline<4> mismatched_config(path_), std::invalid_argument);
+
+  {
+    JournaledMatchingPipeline<4> recovered(path_, config);
+    ASSERT_TRUE(recovered.try_submit(
+        Command{2, LimitIoc{.order_id = 11, .side = Side::Buy, .price = 100, .quantity = 2}}));
+    const auto completed = recovered.drain_and_stop();
+    ASSERT_EQ(completed.size(), 1U);
+    ASSERT_EQ(completed[0].events.size(), 2U);
+    EXPECT_EQ(completed[0].events[1].kind, EventKind::Filled);
+    EXPECT_EQ(completed[0].events[1].maker_order_id, 10U);
+  }
+}
+
+TEST_F(JournalTest, RejectsCorruptedCheckpointBeforeStartingPipeline) {
+  {
+    JournaledMatchingPipeline<4> pipeline(path_);
+    ASSERT_TRUE(pipeline.try_submit(
+        Command{1, LimitGtc{.order_id = 1, .side = Side::Buy, .price = 10, .quantity = 2}}));
+    static_cast<void>(pipeline.checkpoint_and_compact());
+  }
+
+  const auto checkpoint = std::filesystem::path(path_.string() + ".checkpoint");
+  std::fstream file(checkpoint, std::ios::binary | std::ios::in | std::ios::out);
+  file.seekg(12);
+  char byte{};
+  file.read(&byte, 1);
+  byte ^= 0x1;
+  file.seekp(12);
+  file.write(&byte, 1);
+  file.close();
+  EXPECT_THROW(JournaledMatchingPipeline<4> recovered(path_), std::runtime_error);
+}
+
+TEST_F(JournalTest, RecoversIfStoppedAfterCheckpointInstallButBeforeLogTruncation) {
+  const Command command{1,
+                        LimitGtc{.order_id = 7, .side = Side::Sell, .price = 100, .quantity = 3}};
+  {
+    CommandJournal journal(path_);
+    journal.append(command);
+  }
+  std::ifstream input(path_, std::ios::binary);
+  const std::vector<char> original_log((std::istreambuf_iterator<char>(input)),
+                                       std::istreambuf_iterator<char>());
+  input.close();
+
+  ReferenceBook expected;
+  static_cast<void>(expected.process(command));
+  CommandJournal::checkpoint_and_compact(path_, expected.snapshot());
+  {
+    std::ofstream restore_old_log(path_, std::ios::binary | std::ios::trunc);
+    restore_old_log.write(original_log.data(), static_cast<std::streamsize>(original_log.size()));
+  }
+
+  const Command follow_up{2,
+                          LimitIoc{.order_id = 8, .side = Side::Buy, .price = 100, .quantity = 1}};
+  {
+    CommandJournal writer(path_);
+    writer.append(follow_up);
+  }
+  static_cast<void>(expected.process(follow_up));
+  const auto recovered = replay_journal(path_);
+  ASSERT_EQ(recovered.command_events.size(), 1U);
+  ASSERT_EQ(recovered.command_events[0].size(), 2U);
+  EXPECT_EQ(recovered.command_events[0][1].maker_order_id, 7U);
+  EXPECT_EQ(recovered.asks, expected.resting_orders(Side::Sell));
+  EXPECT_EQ(CommandJournal::recover(path_).size(), 1U);
 }
 
 TEST(DepthReconstructorTest, AppliesAbsoluteUpdatesAndTracksBestLevels) {

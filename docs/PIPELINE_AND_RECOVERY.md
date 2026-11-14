@@ -36,18 +36,34 @@ side value, payload size, and contiguous sequences.
 
 When opening for append, an incomplete final frame is truncated to the last
 complete checksum-valid command. A checksum failure in a complete frame is a
-hard error: replay does not silently skip it. Replay processes commands through
-the same reference engine and returns the event vector for every command plus
+hard error: replay does not silently skip it. Replay processes uncheckpointed
+commands through the same reference engine and returns their event vectors plus
 the final resting sides. Deterministic replay assumes the same ChroneX command
 semantics and configuration.
 
 Journal scans validate one bounded frame at a time. `CommandJournal::recover`
-still returns a vector for callers that need the command list; `replay_into`
-rebuilds an empty book directly, and `replay_journal` processes the file without
-materializing a separate command vector. Journaled pipeline startup uses the
-streaming path. This bounds scanner memory to one frame plus the book state, but
-does not shorten restart time or replace checkpoints. `ReplayResult` also keeps
-all command events by design.
+returns commands after the latest checkpoint; without a checkpoint it returns
+the full journal. `replay_into` rebuilds an empty book directly, and
+`replay_journal` returns events for commands after the checkpoint while
+restoring the final book state. Journaled pipeline startup uses this streaming
+path.
+
+Checkpoints use a separate `CXS1` file containing book limits, command and FIFO
+sequence counters, live orders, and a CRC-32 checksum. `checkpoint_and_compact`
+on `JournaledMatchingPipeline` stops intake, drains accepted work, writes and
+syncs the checkpoint, atomically installs it, then truncates and syncs the
+journal. Recovery accepts either the old complete journal or a journal beginning
+after the checkpoint. If the process stops after installing the checkpoint but
+before truncating the old journal, recovery validates that log and skips its
+checkpointed prefix. The snapshot config must match the config used at restart.
+The lower-level `CommandJournal::checkpoint_and_compact` requires all writers
+closed and a snapshot matching the latest journal sequence.
+
+Streaming recovery uses O(commands after the checkpoint) time and holds the
+book plus one frame while scanning. Checkpoint loading temporarily holds the
+snapshot order vector as well as the restored book. `ReplayResult` also retains
+event vectors for commands after the checkpoint. Checkpoints reduce normal
+restart work but do not provide backup, retention, or format migration.
 
 The default `JournalSyncPolicy::EachAppend` writes through the native file API
 and waits for `fsync` on POSIX or `FlushFileBuffers` on Windows before returning
@@ -97,8 +113,8 @@ messages into this absolute-update model.
 - SPSC enqueue/dequeue: O(1), bounded storage O(N), one producer and one
   consumer only.
 - Journal append: O(command payload size) plus the selected OS sync latency;
-  streaming recovery takes O(number of commands) time and O(frame size) extra
-  memory, excluding book state and events retained by the caller.
+  recovery takes O(commands after checkpoint) time and O(live orders + frame
+  size) working memory, excluding events retained by the caller.
 - Depth level update: O(log L) time in the number of stored price levels;
   snapshots and returned views are O(L).
 

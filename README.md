@@ -4,10 +4,13 @@ ChroneX is a deterministic, event-sourced exchange simulator written in C++20.
 It is a portfolio-quality systems project: correctness, replayability, and
 measured behavior matter more than premature low-latency claims.
 
+**Target:** a standalone, single-instrument simulator. ChroneX does not connect
+to live venues or route real orders.
+
 > **Project name:** ChroneX. The codebase and all project artifacts use this
 > name exclusively.
 
-## Current status: Phase 10 complete
+## Current status: Phase 11 complete
 
 ChroneX includes a deterministic price-time-priority matching engine, an
 optimized pooled book policy, a bounded SPSC execution pipeline, a checksummed
@@ -58,12 +61,13 @@ workload definitions and interpretation limits.
 
 ## Verification
 
-The suite has 92 GoogleTest cases covering semantic and boundary behavior,
+The suite has 97 GoogleTest cases covering semantic and boundary behavior,
 seeded differential streams, queue concurrency and backpressure, journal
 round-trips and torn-tail recovery, restart replay, and depth reconstruction.
-All 92 pass locally in Debug, Release, Address/UndefinedBehavior, and Thread
-Sanitizer builds. These checks do not establish power-loss durability, venue
-correctness, tail latency, or production readiness.
+All 97 pass locally in Debug, Release, Address/UndefinedBehavior, and Thread
+Sanitizer builds. The installed CMake package consumer also builds and passes
+locally. These checks do not establish deployment-level power-loss durability,
+tail latency, or production readiness.
 
 ## Scope and non-goals
 

@@ -15,6 +15,8 @@ namespace chronex {
 struct BookConfig {
   Price price_max{1'000'000};
   Quantity quantity_max{1'000'000};
+
+  constexpr bool operator==(const BookConfig&) const = default;
 };
 
 struct RestingOrder {
@@ -25,6 +27,15 @@ struct RestingOrder {
   AcceptanceSequence acceptance_sequence{};
 
   constexpr bool operator==(const RestingOrder&) const = default;
+};
+
+struct BookSnapshot {
+  BookConfig config{};
+  CommandSequence last_command_sequence{};
+  AcceptanceSequence next_acceptance_sequence{1};
+  std::vector<RestingOrder> orders;
+
+  constexpr bool operator==(const BookSnapshot&) const = default;
 };
 
 class ReferenceBook {
@@ -39,6 +50,9 @@ class ReferenceBook {
 
   [[nodiscard]] std::vector<Event> process(const Command& command);
   [[nodiscard]] std::vector<RestingOrder> resting_orders(Side side) const;
+  [[nodiscard]] BookSnapshot snapshot() const;
+  // Restores atomically. The snapshot must use the same book configuration.
+  void restore(const BookSnapshot& snapshot);
   [[nodiscard]] std::optional<Price> best_price(Side side) const;
   [[nodiscard]] std::size_t live_order_count() const noexcept;
   [[nodiscard]] std::optional<std::string> invariant_violation() const;

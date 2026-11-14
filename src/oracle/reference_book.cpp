@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cstdlib>
+#include <limits>
 #include <list>
 #include <map>
 #include <memory>
@@ -81,22 +82,44 @@ struct ReferenceBook::Impl {
 
   void add_resting(const OrderId order_id, const Side side, const Price price,
                    const Quantity quantity) {
+    if (next_acceptance_sequence == std::numeric_limits<AcceptanceSequence>::max())
+      throw std::overflow_error("acceptance sequence space is exhausted");
     StoredOrder order{.order_id = order_id,
                       .side = side,
                       .price = price,
                       .remaining_quantity = quantity,
                       .acceptance_sequence = next_acceptance_sequence++};
+    insert_resting(order);
+  }
 
-    if (side == Side::Buy) {
-      auto& queue = bids[price];
-      queue.push_back(order);
-      locations.emplace(order_id, Location{side, price, std::prev(queue.end())});
-      return;
+  void insert_resting(const StoredOrder& order) {
+    if (locations.contains(order.order_id))
+      throw std::invalid_argument("snapshot contains duplicate live order ids");
+
+    auto insert_at_level = [this, &order](auto& levels) {
+      const auto [level_it, inserted_level] = levels.try_emplace(order.price);
+      auto& queue = level_it->second;
+      try {
+        queue.push_back(order);
+      } catch (...) {
+        if (inserted_level) levels.erase(level_it);
+        throw;
+      }
+      const auto order_it = std::prev(queue.end());
+      try {
+        locations.emplace(order.order_id, Location{order.side, order.price, order_it});
+      } catch (...) {
+        queue.erase(order_it);
+        if (queue.empty()) levels.erase(level_it);
+        throw;
+      }
+    };
+
+    if (order.side == Side::Buy) {
+      insert_at_level(bids);
+    } else {
+      insert_at_level(asks);
     }
-
-    auto& queue = asks[price];
-    queue.push_back(order);
-    locations.emplace(order_id, Location{side, price, std::prev(queue.end())});
   }
 
   void remove_resting(const OrderId order_id) {
@@ -258,6 +281,8 @@ struct ReferenceBook::Impl {
   }
 
   [[nodiscard]] std::vector<Event> process(const Command& command) {
+    if (next_command_sequence == 0U)
+      throw std::overflow_error("command sequence space is exhausted");
     if (command.sequence != next_command_sequence) {
       throw std::invalid_argument("commands must have contiguous increasing sequence numbers");
     }
@@ -355,6 +380,68 @@ struct ReferenceBook::Impl {
     return result;
   }
 
+  [[nodiscard]] BookSnapshot snapshot() const {
+    BookSnapshot result;
+    result.config = config;
+    result.last_command_sequence = next_command_sequence == 0U
+                                       ? std::numeric_limits<CommandSequence>::max()
+                                       : next_command_sequence - 1U;
+    result.next_acceptance_sequence = next_acceptance_sequence;
+    result.orders = resting_orders(Side::Buy);
+    const auto asks_snapshot = resting_orders(Side::Sell);
+    result.orders.insert(result.orders.end(), asks_snapshot.begin(), asks_snapshot.end());
+    return result;
+  }
+
+  void restore(const BookSnapshot& snapshot) {
+    if (snapshot.config != config)
+      throw std::invalid_argument("snapshot book configuration does not match");
+    if (snapshot.next_acceptance_sequence == 0U)
+      throw std::invalid_argument("snapshot next acceptance sequence must be positive");
+    if ((snapshot.last_command_sequence == 0U && !snapshot.orders.empty()) ||
+        (snapshot.last_command_sequence != std::numeric_limits<CommandSequence>::max() &&
+         snapshot.next_acceptance_sequence > snapshot.last_command_sequence + 1U))
+      throw std::invalid_argument("snapshot sequence metadata is inconsistent");
+
+    std::vector<RestingOrder> orders = snapshot.orders;
+    for (const auto& order : orders) {
+      if ((order.side != Side::Buy && order.side != Side::Sell) || !valid_price(order.price) ||
+          !valid_quantity(order.remaining_quantity) || order.acceptance_sequence == 0U ||
+          order.acceptance_sequence >= snapshot.next_acceptance_sequence) {
+        throw std::invalid_argument("snapshot contains invalid resting order state");
+      }
+    }
+    std::sort(orders.begin(), orders.end(),
+              [](const RestingOrder& left, const RestingOrder& right) {
+                return left.acceptance_sequence < right.acceptance_sequence;
+              });
+    for (std::size_t i = 1; i < orders.size(); ++i) {
+      if (orders[i - 1U].acceptance_sequence == orders[i].acceptance_sequence)
+        throw std::invalid_argument("snapshot contains duplicate acceptance sequences");
+    }
+
+    Impl candidate(config);
+    for (const auto& order : orders) {
+      candidate.insert_resting(StoredOrder{.order_id = order.order_id,
+                                           .side = order.side,
+                                           .price = order.price,
+                                           .remaining_quantity = order.remaining_quantity,
+                                           .acceptance_sequence = order.acceptance_sequence});
+    }
+    candidate.next_acceptance_sequence = snapshot.next_acceptance_sequence;
+    candidate.next_command_sequence =
+        snapshot.last_command_sequence == std::numeric_limits<CommandSequence>::max()
+            ? 0U
+            : snapshot.last_command_sequence + 1U;
+    if (const auto violation = candidate.invariant_violation(); violation.has_value())
+      throw std::invalid_argument("snapshot violates book invariants: " + *violation);
+    bids.swap(candidate.bids);
+    asks.swap(candidate.asks);
+    locations.swap(candidate.locations);
+    next_command_sequence = candidate.next_command_sequence;
+    next_acceptance_sequence = candidate.next_acceptance_sequence;
+  }
+
   [[nodiscard]] std::optional<Price> best_price(const Side side) const {
     if (side == Side::Buy) {
       return bids.empty() ? std::nullopt : std::optional<Price>(bids.begin()->first);
@@ -429,6 +516,14 @@ std::vector<Event> ReferenceBook::process(const Command& command) {
 
 std::vector<RestingOrder> ReferenceBook::resting_orders(const Side side) const {
   return impl_->resting_orders(side);
+}
+
+BookSnapshot ReferenceBook::snapshot() const {
+  return impl_->snapshot();
+}
+
+void ReferenceBook::restore(const BookSnapshot& snapshot) {
+  impl_->restore(snapshot);
 }
 
 std::optional<Price> ReferenceBook::best_price(const Side side) const {

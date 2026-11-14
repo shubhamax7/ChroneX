@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.24)
 project(ChroneXConsumer LANGUAGES CXX)
 
-find_package(ChroneX 0.4 CONFIG REQUIRED)
+find_package(ChroneX CONFIG REQUIRED)
 
 add_executable(chronex_package_consumer main.cpp)
 target_compile_features(chronex_package_consumer PRIVATE cxx_std_20)

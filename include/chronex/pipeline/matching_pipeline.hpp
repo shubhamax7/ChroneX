@@ -108,6 +108,11 @@ class MatchingPipeline {
     return {};
   }
 
+  [[nodiscard]] BookSnapshot snapshot_after_stop() const {
+    if (!joined_) throw std::logic_error("pipeline must be stopped before snapshotting its book");
+    return book_.snapshot();
+  }
+
  private:
   void start_worker() {
     worker_running_.store(true, std::memory_order_relaxed);

@@ -1,7 +1,7 @@
 # ChroneX roadmap
 
 The original research plan has nine technical stages grouped into five delivery
-phases. Phases 6 through 10 are post-plan hardening stages added to address the
+phases. Phases 6 through 11 are post-plan hardening stages added to address the
 documented release blockers.
 
 | Delivery phase | Technical roadmap stages | Exit criterion |
@@ -16,6 +16,7 @@ documented release blockers.
 | 8. Package interoperability | P12 (post-plan) | Installable CMake config/target, public headers, and a downstream consumer build in CI. |
 | 9. Pipeline throughput evidence | P13 (post-plan) | Reproducible end-to-end SPSC throughput workload with bounded-queue pressure reporting. |
 | 10. Streaming journal recovery | P14 (post-plan) | Frame-at-a-time validation and book replay without materializing the full command log. |
+| 11. Checkpointed recovery | P15 (post-plan) | Checksummed book snapshots, crash-safe journal compaction, and restart continuation. |
 
 ## Phase 1 acceptance criteria
 
@@ -130,3 +131,17 @@ the full-file byte buffer from all scans. Replay remains O(history) time, and
 `ReplayResult` intentionally retains per-command event vectors. Checkpoints,
 compaction, and retention are still needed for long-lived journals. The project
 version is 0.6.0.
+
+## Phase 11 handoff (standalone simulator recovery)
+
+Phase 11 adds P15: a validated snapshot of live orders and exact sequence
+state, a version-marked/checksummed checkpoint file, and a checkpoint-and-
+compact operation for a stopped journaled pipeline. The checkpoint is synced
+and atomically installed before the journal is truncated and synced. Recovery
+accepts either the old full log or the compacted tail, so a stop between
+checkpoint installation and truncation still restores the same book. The
+journaled pipeline can drain, checkpoint, and compact through one method.
+Tests cover FIFO/sequence restoration, invalid snapshots, checkpoint
+corruption, compaction and continuation, and the checkpoint-before-truncation
+crash window. Large-history soak, retention, and checkpoint format migration
+remain open. The project version is 0.7.0.

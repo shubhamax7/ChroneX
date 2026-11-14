@@ -17,8 +17,7 @@ class JournaledMatchingPipeline {
  public:
   explicit JournaledMatchingPipeline(const std::filesystem::path& journal_path,
                                      BookConfig config = {})
-      : journal_(journal_path),
-        pipeline_(config, [path = journal_path](ReferenceBook& book) {
+      : journal_(journal_path), pipeline_(config, [path = journal_path](ReferenceBook& book) {
           return CommandJournal::replay_into(path, book);
         }) {}
 
@@ -36,6 +35,17 @@ class JournaledMatchingPipeline {
 
   [[nodiscard]] std::vector<PipelineResult> drain_and_stop() {
     return pipeline_.drain_and_stop();
+  }
+
+  // Stops intake, drains accepted commands, persists the final book snapshot,
+  // and compacts the journal. Construct a new pipeline to resume afterward.
+  [[nodiscard]] std::vector<PipelineResult> checkpoint_and_compact() {
+    auto remaining = pipeline_.drain_and_stop();
+    const auto snapshot = pipeline_.snapshot_after_stop();
+    const auto path = journal_.path();
+    journal_.close();
+    CommandJournal::checkpoint_and_compact(path, snapshot);
+    return remaining;
   }
 
  private:

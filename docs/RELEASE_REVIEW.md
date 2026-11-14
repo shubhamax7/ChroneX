@@ -1,15 +1,16 @@
 # ChroneX release review
 
 Review date: 2026-11-14
-Reviewed scope: delivery Phases 1-10 (P0-P14)
-Project version: 0.6.0
+Reviewed scope: delivery Phases 1-11 (P0-P15), standalone simulator target
+Project version: 0.7.0
 
 ## Decision
 
-Phase 10 is complete for the educational prototype. ChroneX is suitable for
-review, local development, and reproducible experiments. It is not approved as
-a production matching engine or as a v1.0.0 release. The version remains 0.6.0
-until the production blockers below are addressed and independently reviewed.
+Phase 11 is complete for the standalone simulator prototype. ChroneX is suitable
+for review, local development, and reproducible simulation. It has not been
+validated for production deployment or approved as a v1.0.0 release. The version
+remains 0.7.0 until the reliability, platform, and operational gaps below are
+addressed and independently reviewed.
 
 ## Evidence
 
@@ -24,6 +25,13 @@ until the production blockers below are addressed and independently reviewed.
   behavior, pipeline draining, journal command round-trip and replay, torn-tail
   recovery at all incomplete-frame byte boundaries, checksum rejection,
   restart continuation, and depth reconstruction.
+- After Phases 10-11, all 97 GoogleTest cases passed in Debug on 2026-11-14.
+  New coverage includes streaming recovery, snapshot restoration, checkpoint
+  corruption, compaction/continuation, and the checkpoint-before-truncation
+  crash window. After Phase 11, all 97 cases also passed in Release,
+  Address/UndefinedBehavior Sanitizers, and ThreadSanitizer on the developer
+  workstation. Hosted Linux CI results and Windows checkpoint execution remain
+  unobserved.
 - The Phase 3 balanced-add comparison is preserved as raw JSON in
   `results/local-macos/2026-11-07/`. It contains three repetitions on one
   machine and excludes construction for the two book-policy cases. It is
@@ -36,6 +44,9 @@ until the production blockers below are addressed and independently reviewed.
   full-queue retries per command. Raw JSON and environment metadata are in
   `results/local-macos/2026-11-14/`; CPU model/frequency were unavailable and
   affinity could not be set, so this is a preliminary local baseline only.
+- The installed-package consumer configured, built, and passed locally against
+  the 0.7.0 Release install. Hosted Linux package and compiler-matrix results
+  remain to be observed.
 
 The local verification is evidence from one workstation, not a substitute for
 observed hosted CI runs on all matrix entries. CI should be green for the final
@@ -50,7 +61,8 @@ commit before distributing a tagged binary.
 - A bounded SPSC command pipeline with explicit queue-full backpressure and
   ordered results.
 - A versioned command journal with CRC-32 frame checks, replay, and truncation
-  of an incomplete final frame.
+  of an incomplete final frame, plus version-marked checksummed book snapshots
+  and stopped-pipeline checkpoint/compaction.
 - Venue-neutral market-by-price snapshots and contiguous absolute-quantity
   updates.
 - Normative matching semantics, ADRs, benchmark instructions, recovery
@@ -58,18 +70,18 @@ commit before distributing a tagged binary.
 
 ## Blockers before v1.0.0 or production use
 
-1. **Journal scale:** replay now streams frames without materializing the log,
-   but still scans and applies the full history at every restart. Add a
-   checkpoint/snapshot format, safe compaction, version migration, and retention
-   policy before long-lived use.
+1. **Journal scale and operations:** checkpoints and journal compaction now
+   bound normal restart work. Run large-history startup/compaction soak tests,
+   define checkpoint retention/backup and disk-full procedures, and specify
+   journal/checkpoint migration before long-lived use.
 2. **Concurrency validation:** observe the hosted Linux ThreadSanitizer CI job
    and add longer-duration soak and measured overload tests. Local ThreadSanitizer
    and bounded saturation checks pass, but they do not establish sustained
    production behavior.
-3. **Feed integration:** implement and test at least one named venue adapter,
-   including its snapshot sequence rules, incremental updates, corrections,
-   and resynchronization workflow. Current depth reconstruction is deliberately
-   venue-neutral.
+3. **Scope boundary:** live venue integration is outside the selected standalone
+   simulator target. If ChroneX is later extended to connect to a venue, that
+   work needs a named adapter, exchange-specific sequencing/correction rules,
+   resynchronization, and captured-feed conformance tests.
 4. **Performance evidence:** report pipeline latency distributions, test
    representative order-flow distributions, and compare reference and optimized
    policies under the same measured setup. The new balanced-add pipeline
@@ -87,8 +99,9 @@ commit before distributing a tagged binary.
   not exchange connectivity and does not claim venue behavior.
 - `SpscRing` requires exactly one producer and one consumer. The queue is
   bounded; application code must handle `false` as backpressure.
-- The binary journal is versioned, but no cross-version migration is provided.
-  A complete checksum mismatch stops recovery instead of skipping data.
+- The binary journal and checkpoint formats are versioned, but no migration or
+  automated backup/retention policy is provided. A complete checksum mismatch
+  stops recovery instead of skipping data.
 - Per-record OS sync requests do not override storage hardware or filesystem
   guarantees; power-loss testing on target deployment systems remains open.
 - The optimized policy allocates dense arrays from configured price bounds and
