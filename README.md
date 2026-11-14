@@ -10,7 +10,7 @@ to live venues or route real orders.
 > **Project name:** ChroneX. The codebase and all project artifacts use this
 > name exclusively.
 
-## Current status: Phase 11 complete
+## Current status: Phase 12 complete
 
 ChroneX includes a deterministic price-time-priority matching engine, an
 optimized pooled book policy, a bounded SPSC execution pipeline, a checksummed

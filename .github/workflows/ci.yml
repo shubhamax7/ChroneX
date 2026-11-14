@@ -27,16 +27,45 @@ jobs:
         run: ctest --test-dir build/package-consumer --output-on-failure
 
   build-and-test:
-    name: ${{ matrix.compiler }} / ${{ matrix.preset }}
-    runs-on: ubuntu-24.04
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        compiler: [gcc, clang]
-        preset: [debug, release]
+        include:
+          - name: Ubuntu 24.04 / GCC / Debug
+            os: ubuntu-24.04
+            cc: gcc
+            cxx: g++
+            preset: debug
+          - name: Ubuntu 24.04 / GCC / Release
+            os: ubuntu-24.04
+            cc: gcc
+            cxx: g++
+            preset: release
+          - name: Ubuntu 24.04 / Clang / Debug
+            os: ubuntu-24.04
+            cc: clang
+            cxx: clang++
+            preset: debug
+          - name: Ubuntu 24.04 / Clang / Release
+            os: ubuntu-24.04
+            cc: clang
+            cxx: clang++
+            preset: release
+          - name: macOS 15 / Apple Clang / Debug
+            os: macos-15
+            cc: clang
+            cxx: clang++
+            preset: debug
+          - name: macOS 15 / Apple Clang / Release
+            os: macos-15
+            cc: clang
+            cxx: clang++
+            preset: release
     env:
-      CC: ${{ matrix.compiler == 'gcc' && 'gcc' || 'clang' }}
-      CXX: ${{ matrix.compiler == 'gcc' && 'g++' || 'clang++' }}
+      CC: ${{ matrix.cc }}
+      CXX: ${{ matrix.cxx }}
     steps:
       - uses: actions/checkout@v4
       - name: Configure

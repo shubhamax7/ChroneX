@@ -1,15 +1,15 @@
 # ChroneX release review
 
 Review date: 2026-11-14
-Reviewed scope: delivery Phases 1-11 (P0-P15), standalone simulator target
-Project version: 0.7.0
+Reviewed scope: delivery Phases 1-12 (P0-P16), standalone simulator target
+Project version: 0.8.0
 
 ## Decision
 
-Phase 11 is complete for the standalone simulator prototype. ChroneX is suitable
+Phase 12 is complete for the standalone simulator prototype. ChroneX is suitable
 for review, local development, and reproducible simulation. It has not been
 validated for production deployment or approved as a v1.0.0 release. The version
-remains 0.7.0 until the reliability, platform, and operational gaps below are
+remains 0.8.0 until the reliability, platform, and operational gaps below are
 addressed and independently reviewed.
 
 ## Evidence
@@ -45,8 +45,11 @@ addressed and independently reviewed.
   `results/local-macos/2026-11-14/`; CPU model/frequency were unavailable and
   affinity could not be set, so this is a preliminary local baseline only.
 - The installed-package consumer configured, built, and passed locally against
-  the 0.7.0 Release install. Hosted Linux package and compiler-matrix results
+  the 0.8.0 Release install. Hosted Linux package and compiler-matrix results
   remain to be observed.
+- CI is configured to run Debug and Release on Ubuntu 24.04 with GCC/Clang and
+  macOS 15 with Apple Clang. These hosted results have not yet been observed;
+  Windows is not currently a supported platform.
 
 The local verification is evidence from one workstation, not a substitute for
 observed hosted CI runs on all matrix entries. CI should be green for the final
@@ -87,11 +90,11 @@ commit before distributing a tagged binary.
    policies under the same measured setup. The new balanced-add pipeline
    benchmark records throughput and queue-full retries, but not per-command
    latency. The pipeline still uses the reference book.
-5. **Release engineering:** observe hosted CI results for the new package
-   consumer job, publish supported platform/compiler combinations, and define
-   compatibility policy for the journal format and public C++ API. The local
-   install/export consumer path is now covered, but API and binary compatibility
-   are not promised.
+5. **Release engineering:** observe the hosted Linux/macOS build matrix and
+   package-consumer job, add Windows validation before claiming Windows support,
+   publish supported combinations, and define compatibility policy for the
+   journal format and public C++ API. The local package consumer passes, but API
+   and binary compatibility are not promised.
 
 ## Limitations users must account for
 

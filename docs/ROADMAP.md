@@ -1,7 +1,7 @@
 # ChroneX roadmap
 
 The original research plan has nine technical stages grouped into five delivery
-phases. Phases 6 through 11 are post-plan hardening stages added to address the
+phases. Phases 6 through 12 are post-plan hardening stages added to address the
 documented release blockers.
 
 | Delivery phase | Technical roadmap stages | Exit criterion |
@@ -17,6 +17,7 @@ documented release blockers.
 | 9. Pipeline throughput evidence | P13 (post-plan) | Reproducible end-to-end SPSC throughput workload with bounded-queue pressure reporting. |
 | 10. Streaming journal recovery | P14 (post-plan) | Frame-at-a-time validation and book replay without materializing the full command log. |
 | 11. Checkpointed recovery | P15 (post-plan) | Checksummed book snapshots, crash-safe journal compaction, and restart continuation. |
+| 12. Platform validation matrix | P16 (post-plan) | Debug/Release builds and tests on Linux GCC/Clang and macOS Apple Clang. |
 
 ## Phase 1 acceptance criteria
 
@@ -145,3 +146,12 @@ Tests cover FIFO/sequence restoration, invalid snapshots, checkpoint
 corruption, compaction and continuation, and the checkpoint-before-truncation
 crash window. Large-history soak, retention, and checkpoint format migration
 remain open. The project version is 0.7.0.
+
+## Phase 12 handoff (standalone simulator portability)
+
+Phase 12 adds P16 by extending the hosted build/test matrix to macOS 15 with
+Apple Clang in Debug and Release, alongside the existing Ubuntu 24.04 GCC and
+Clang matrix. This checks the POSIX journal implementation on both Linux and
+macOS once hosted runs are observed. Windows remains unclaimed and unverified;
+its native file path requires its own CI job before support can be published.
+The project version is 0.8.0.
